@@ -30,9 +30,9 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_STANDARD": "23",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-                "BUILD_OSG_PLUGINS_BY_DEFAULT": "OFF",
+                "BUILD_OSG_PLUGINS_BY_DEFAULT": "ON",
                 "BUILD_OSG_APPLICATIONS": "OFF",
-                "BUILD_OSG_EXAMPLES": "OFF"
+                "BUILD_OSG_EXAMPLES": "ON"
             }
         }
     ],

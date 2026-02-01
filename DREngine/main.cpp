@@ -30,6 +30,14 @@
 #include <osg/ShapeDrawable>
 #include <osg/LineWidth>
 
+#include "deferred.h"
+#include <osg/AnimationPath>
+#include <osg/PolygonMode>
+#include <osgDB/ReadFile>
+#include <osgShadow/SoftShadowMap>
+#include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
+#include <osgUtil/TangentSpaceGenerator>
 
 // The classic OpenGL teapot... taken form glut-3.7/lib/glut/glut_teapot.c
 
@@ -546,45 +554,124 @@ osg::Group* createLine()
     return root;
 }
 
-int main(int , char **)
-{
-#if 1
+// int main(int , char **)
+// {
 
-    // create viewer on heap as a test, this looks to be causing problems
-    // on init on some platforms, and seg fault on exit when multi-threading on linux.
-    // Normal stack based version below works fine though...
+//     // create viewer on heap as a test, this looks to be causing problems
+//     // on init on some platforms, and seg fault on exit when multi-threading on linux.
+//     // Normal stack based version below works fine though...
 
-    // construct the viewer.
-    osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
+//     // construct the viewer.
+//     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
 
-    osgDB::FilePathList& pathList = osgDB::Registry::instance()->getDataFilePathList();
+//     osgDB::FilePathList& pathList = osgDB::Registry::instance()->getDataFilePathList();
     
-    std::cout << "OSG Data File Paths:" << std::endl;
-    for (osgDB::FilePathList::iterator it = pathList.begin(); 
-         it != pathList.end(); ++it) {
-        std::cout << "  " << *it << std::endl;
-    }
+//     std::cout << "OSG Data File Paths:" << std::endl;
+//     for (osgDB::FilePathList::iterator it = pathList.begin(); 
+//          it != pathList.end(); ++it) {
+//         std::cout << "  " << *it << std::endl;
+//     }
 
-    // add model to viewer.
-    osg::Group* root = new osg::Group();
-    root->addChild(createTeapot());
-    root->addChild(createLine());
+//     // add model to viewer.
+//     osg::Group* root = new osg::Group();
+//     root->addChild(createTeapot());
+//     root->addChild(createLine());
 
-    //viewer->setSceneData( createTeapot() );
-    viewer->setSceneData( root );
+//     viewer->setSceneData( root );
 
-    return viewer->run();
+//     return viewer->run();
 
-#else
+// }
 
-    // construct the viewer.
+
+int main()
+{
+  // Display everything.
     osgViewer::Viewer viewer;
 
-    // add model to viewer.
-    viewer.setSceneData( createTeapot() );
+    // add the stats handler
+    viewer.addEventHandler(new osgViewer::StatsHandler);
 
-    // create the windows and run the threads.
+    // Make screenshots with 'c'.
+    viewer.addEventHandler(
+        new osgViewer::ScreenCaptureHandler(
+            new osgViewer::ScreenCaptureHandler::WriteToFile(
+                "screenshot",
+                "png",
+                osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
+
+    viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+    // 明确设置
+    double zNear = 0.1;
+    double zFar  = 2000.0;
+
+    viewer.getCamera()->setProjectionMatrixAsPerspective(
+        60.0,      // fovy
+        1.0,       // aspect（OSG 会在 resize 时更新）
+        zNear,
+        zFar
+    );
+
+    // Useful declaration.
+    osg::ref_ptr<osg::StateSet> ss;
+    // Scene.
+    osg::Vec3 lightPos(0, 0, 80);
+    osg::ref_ptr<osg::Group> scene = createSceneRoom();
+    osg::ref_ptr<osg::LightSource> light = createLight(lightPos);
+    scene->addChild(light.get());
+    // Shadowed scene.
+    osg::ref_ptr<osgShadow::SoftShadowMap> shadowMap = new osgShadow::SoftShadowMap;
+    shadowMap->setJitteringScale(16);
+    shadowMap->addShader(osgDB::readRefShaderFile("shaders/pass1Shadow.frag"));
+    shadowMap->setLight(light.get());
+    osg::ref_ptr<osgShadow::ShadowedScene> shadowedScene = new osgShadow::ShadowedScene;
+    shadowedScene->setShadowTechnique(shadowMap.get());
+    shadowedScene->addChild(scene.get());
+
+    Pipeline p = createPipelinePlainOSG(scene, shadowedScene, lightPos,viewer.getCamera());
+    // Quads to display 1 pass textures.
+    osg::ref_ptr<osg::Camera> qTexN =
+        createTextureDisplayQuad(osg::Vec3(0, 0.7, 0),
+                                 p.pass2Normals,
+                                 p.textureSize);
+    osg::ref_ptr<osg::Camera> qTexP =
+        createTextureDisplayQuad(osg::Vec3(0, 0.35, 0),
+                                 p.pass2Positions,
+                                 p.textureSize);
+    osg::ref_ptr<osg::Camera> qTexC =
+        createTextureDisplayQuad(osg::Vec3(0, 0, 0),
+                                 p.pass2Colors,
+                                 p.textureSize);
+    osg::ref_ptr<osg::Camera> qTexD =
+        createTextureDisplayQuad(osg::Vec3(0.7, 0, 0),
+                                 p.pass2Depth,
+                              p.textureSize);
+    // Qaud to display 2 pass shadow texture.
+    osg::ref_ptr<osg::Camera> qTexS =
+        createTextureDisplayQuad(osg::Vec3(0.7, 0.7, 0),
+                                 p.pass1Shadows,
+                                 p.textureSize);
+    // Quad to display 3 pass final (screen) texture.
+    osg::ref_ptr<osg::Camera> qTexFinal =
+        createTextureDisplayQuad(osg::Vec3(0, 0, 0),
+                                 p.pass3Final,
+                                 p.textureSize,
+                                 1,
+                                 1);
+    // Must be processed before the first pass takes
+    // the result into pass1Shadows texture.
+    p.graph->insertChild(0, shadowedScene.get());
+    // Quads are displayed in order, so the biggest one (final) must be first,
+    // otherwise other quads won't be visible.
+    p.graph->addChild(qTexFinal.get());
+    p.graph->addChild(qTexN.get());
+    p.graph->addChild(qTexP.get());
+    p.graph->addChild(qTexC.get());
+    p.graph->addChild(qTexD.get());
+    p.graph->addChild(qTexS.get());
+
+    viewer.setSceneData(p.graph.get());
+
     return viewer.run();
-#endif
-
 }
+
