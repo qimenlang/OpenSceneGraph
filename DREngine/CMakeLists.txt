@@ -1,5 +1,5 @@
 ﻿set(DR_ENGINE_NAME OSGEngine)
-add_executable(${DR_ENGINE_NAME} main.cpp deferred.cpp )
+add_executable(${DR_ENGINE_NAME} main.cpp deferred.cpp teapot.cpp)
 target_link_libraries(${DR_ENGINE_NAME} PRIVATE osgViewer osgDB osgGA osgUtil osg osgShadow)
 
 

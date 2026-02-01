@@ -102,6 +102,7 @@ private:
 
 Pipeline createPipelinePlainOSG(
         osg::ref_ptr<osg::Group> scene,
+        osg::ref_ptr<osg::Group> transparentGroup,
         osg::ref_ptr<osgShadow::ShadowedScene> shadowedScene,
         const osg::Vec3 lightPos,
         osg::ref_ptr<osg::Camera> mainCamera)
@@ -149,6 +150,7 @@ Pipeline createPipelinePlainOSG(
     p.pass3Final = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass3 =
         createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass3Final, true);
+    pass3->setRenderOrder(osg::Camera::PRE_RENDER);
     ss = setShaderProgram(pass3, "shaders/pass3.vert", "shaders/pass3.frag");
     ss->setTextureAttributeAndModes(0, p.pass2Positions);
     ss->setTextureAttributeAndModes(1, p.pass2Normals);
@@ -160,10 +162,29 @@ Pipeline createPipelinePlainOSG(
     ss->addUniform(new osg::Uniform("shadowMap", 3));
     // Light position.
     ss->addUniform(new osg::Uniform("lightPos", lightPos));
+
+    // Pass 4 (transparent objects).
+    p.pass4Transparent = createFloatTextureRectangle(p.textureSize);
+    
+    osg::ref_ptr<osg::Camera> pass4 =
+    createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass4Transparent, true);
+    {
+       // 不清颜色！只清深度或什么都不清 why？？
+       //pass4->setClearMask(0);
+       //pass4->setRenderOrder(osg::Camera::POST_RENDER);
+       pass4->addChild(transparentGroup.get());
+       
+       ss = setShaderProgram(pass4, "shaders/pass3.vert", "shaders/pass4.frag");
+        //ss->setTextureAttributeAndModes(0, createTexture("Images/whitemetal_diffuse.jpg"));
+       ss->setTextureAttributeAndModes(0, p.pass3Final);
+       ss->addUniform(new osg::Uniform("sceneColor",0));
+    }
+    
     // Graph.
     p.graph->addChild(pass1);
     p.graph->addChild(pass2);
     p.graph->addChild(pass3);
+    p.graph->addChild(pass4);
     return p;
 }
 

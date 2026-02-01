@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include <osg/Camera>
 #include <osg/Group>
 #include <osg/MatrixTransform>
@@ -16,6 +18,7 @@ struct Pipeline
     osg::Texture *pass2Positions;
     osg::Texture *pass2Depth;
     osg::Texture *pass3Final;
+    osg::Texture *pass4Transparent;
 };
 
 osg::TextureRectangle *createFloatTextureRectangle();
@@ -34,6 +37,7 @@ Pipeline createPipelineEffectCompositor(
 
 Pipeline createPipelinePlainOSG(
         osg::ref_ptr<osg::Group> scene,
+        osg::ref_ptr<osg::Group> transparentGroup,
         osg::ref_ptr<osgShadow::ShadowedScene> shadowedScene,
         const osg::Vec3 lightPos,
         osg::ref_ptr<osg::Camera> mainCamera);
@@ -43,6 +47,7 @@ osg::Camera *createRTTCamera(osg::Camera::BufferComponent buffer,
                              bool isAbsolute = false);
 
 osg::ref_ptr<osg::Group> createSceneRoom();
+osg::ref_ptr<osg::Group> createTransparentGroup();
 
 osg::Geode *createScreenQuad(float width,
                              float height,
