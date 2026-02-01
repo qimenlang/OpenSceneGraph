@@ -13,7 +13,7 @@ SET(OPENSCENEGRAPH_RELEASE_CANDIDATE 1)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.0 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5.0 FATAL_ERROR)
 
 if(COMMAND cmake_policy)
     # Works around warnings libraries linked against that don't
@@ -1421,3 +1421,6 @@ ADD_CUSTOM_TARGET(uninstall
 #
 include(FeatureSummary)
 feature_summary(WHAT ALL)
+
+
+add_subdirectory("DREngine")

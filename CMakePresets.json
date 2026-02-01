@@ -1,0 +1,53 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "osgengine",
+            "displayName": "Visual Studio Enterprise 2026 Release - amd64",
+            "description": "将编译器用于 Visual Studio 18 2026 (x64 体系结构)",
+            "generator": "Visual Studio 18 2026",
+            "toolset": "host=x64",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "osgengine-ninja-cl",
+            "displayName": "osgengine-ninja-cl",
+            "description": "将编译器用于 Visual Studio 18 2026 (x64 体系结构)，使用 Ninja 生成器, 需要cmake tools 禁用kit自动扫描",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_STANDARD": "23",
+                "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+                "BUILD_OSG_PLUGINS_BY_DEFAULT": "OFF",
+                "BUILD_OSG_APPLICATIONS": "OFF",
+                "BUILD_OSG_EXAMPLES": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "osgengine-debug",
+            "displayName": "Visual Studio Enterprise 2026 Release - amd64 - Debug",
+            "configurePreset": "osgengine",
+            "configuration": "Debug"
+        },
+        {
+            "name": "osgengine-debug-ninja-cl",
+            "description": "osgengine-debug-ninja-cl",
+            "displayName": "osgengine-debug-ninja-cl",
+            "configurePreset": "osgengine-ninja-cl"
+        }
+    ]
+}
