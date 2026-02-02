@@ -134,6 +134,7 @@
     "cmake.buildBeforeRun": false,
     "cmake.enableAutomaticKitScan": false,
     "cmake.enableKitScan": false,
+
     "C_Cpp.default.compileCommands": "${workspaceFolder}/out/build/ninja-msvc/compile_commands.json",
     // 配置 ninja-msvc + clangd 代码跳转 
     // 1.指定 clangd 本体
@@ -148,4 +149,6 @@
     ],
     // 3.必须关掉微软的 C++ 插件 IntelliSense
     "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.workspaceParsingPriority": "low",
+    "C_Cpp.autocomplete": "disabled",
 }

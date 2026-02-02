@@ -94,43 +94,30 @@ OpenGL(TM) is a trademark of Silicon Graphics, Inc.
 /* Rim, body, lid, and bottom data must be reflected in x and
    y; handle and spout data across the y axis only.  */
 
+struct PrintGLCallback : public osg::Camera::DrawCallback
+{
+    mutable bool done = false;
 
-// int main(int , char **)
-// {
+    virtual void operator()(osg::RenderInfo& renderInfo) const
+    {
+        if(done) return;
+        done = true;
+        std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+        std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
+        std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
+    }
+};
 
-//     // create viewer on heap as a test, this looks to be causing problems
-//     // on init on some platforms, and seg fault on exit when multi-threading on linux.
-//     // Normal stack based version below works fine though...
-
-//     // construct the viewer.
-//     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;
-
-//     osgDB::FilePathList& pathList = osgDB::Registry::instance()->getDataFilePathList();
-    
-//     std::cout << "OSG Data File Paths:" << std::endl;
-//     for (osgDB::FilePathList::iterator it = pathList.begin(); 
-//          it != pathList.end(); ++it) {
-//         std::cout << "  " << *it << std::endl;
-//     }
-
-//     // add model to viewer.
-//     osg::Group* root = new osg::Group();
-//     root->addChild(createTeapot());
-//     root->addChild(createLine());
-
-//     viewer->setSceneData( root );
-
-//     return viewer->run();
-
-// }
 
 osg::ref_ptr<osg::Group> createTransparentGroup(){
     osg::ref_ptr<osg::Group> transparentGroup = new osg::Group();
 
-    osg::ref_ptr<osg::MatrixTransform> cube1 = createTeapotAtPos(osg::Vec3(-10,0,5));
-    osg::ref_ptr<osg::MatrixTransform> cube2 = createCube(osg::Vec3(10,0,15),osg::Vec3(0.0,1.0,0.0));
+    osg::ref_ptr<osg::MatrixTransform> teapot1 = createTeapotAtPos(osg::Vec3(0,0,5));
+    osg::ref_ptr<osg::MatrixTransform> teapot2 = createTeapotAtPos(osg::Vec3(0,0,25));
+    osg::ref_ptr<osg::MatrixTransform> cube2 = createCube(osg::Vec3(0,0,15),osg::Vec3(0.0,1.0,0.0));
 
-    transparentGroup->addChild(cube1.get());
+    transparentGroup->addChild(teapot1.get());
+    transparentGroup->addChild(teapot2.get());
     transparentGroup->addChild(cube2.get());
 
     // 设置透明属性
@@ -150,37 +137,43 @@ osg::ref_ptr<osg::Group> createTransparentGroup(){
         osg::StateAttribute::ON
     );
 
-
+    ss->setRenderBinDetails(10, "RenderBin");
     return transparentGroup;
 }
 
 int main()
-{
-  // Display everything.
-    osgViewer::Viewer viewer;
-
+{    
+    // Display everything.
+    osgViewer::Viewer viewer;    
     // add the stats handler
     viewer.addEventHandler(new osgViewer::StatsHandler);
-
+    
     // Make screenshots with 'c'.
     viewer.addEventHandler(
-        new osgViewer::ScreenCaptureHandler(
-            new osgViewer::ScreenCaptureHandler::WriteToFile(
-                "screenshot",
-                "png",
-                osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
+new osgViewer::ScreenCaptureHandler(
+new osgViewer::ScreenCaptureHandler::WriteToFile(
+"screenshot",
+"png",
+osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
+        
+        viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+        // 明确设置
+        double zNear = 0.1;
+        double zFar  = 2000.0;
+        
+        viewer.getCamera()->setProjectionMatrixAsPerspective(
+            60.0,      // fovy
+            1.0,       // aspect（OSG 会在 resize 时更新）
+            zNear,
+            zFar
+        );
 
-    viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
-    // 明确设置
-    double zNear = 0.1;
-    double zFar  = 2000.0;
-
-    viewer.getCamera()->setProjectionMatrixAsPerspective(
-        60.0,      // fovy
-        1.0,       // aspect（OSG 会在 resize 时更新）
-        zNear,
-        zFar
-    );
+    std::string glContextVersion = osg::DisplaySettings::instance()->getGLContextVersion();
+    int glContextProfileMask = osg::DisplaySettings::instance()->getGLContextProfileMask();
+    std::cout<<"Requested GL Context Version: "<<glContextVersion<<std::endl;
+    std::cout<<"Requested GL Context Profile Mask: "<<glContextProfileMask<<std::endl;
+        
+    viewer.getCamera()->setPostDrawCallback(new PrintGLCallback());
 
     // Useful declaration.
     osg::ref_ptr<osg::StateSet> ss;
@@ -218,24 +211,25 @@ int main()
         createTextureDisplayQuad(osg::Vec3(0.7, 0, 0),
                                  p.pass2Depth,
                               p.textureSize);
+    
+    osg::ref_ptr<osg::Camera> qTexTsp =
+    createTextureDisplayQuad(osg::Vec3(0.7, 0.35, 0),
+    p.pass4Transparent,
+    p.textureSize);
+                              
     // Qaud to display 2 pass shadow texture.
     osg::ref_ptr<osg::Camera> qTexS =
         createTextureDisplayQuad(osg::Vec3(0.7, 0.7, 0),
-                                 p.pass1Shadows,
-                                 p.textureSize);
+                                p.pass1Shadows,
+                                p.textureSize);
     // Quad to display 3 pass final (screen) texture.
     osg::ref_ptr<osg::Camera> qTexFinal =
         createTextureDisplayQuad(osg::Vec3(0, 0, 0),
-                                 p.pass3Final,
-                                 p.textureSize,
-                                 1,
-                                 1);
-
-    osg::ref_ptr<osg::Camera> qTexTsp =
-        createTextureDisplayQuad(osg::Vec3(0.7, 0.35, 0),
-                                 p.pass4Transparent,
-                                 p.textureSize);
-    // Must be processed before the first pass takes
+                                p.pass3Final,
+                                p.textureSize,
+                                1,
+                                1);
+                                 // Must be processed before the first pass takes
     // the result into pass1Shadows texture.
     p.graph->insertChild(0, shadowedScene.get());
     // Quads are displayed in order, so the biggest one (final) must be first,
@@ -248,8 +242,8 @@ int main()
     p.graph->addChild(qTexS.get());
     p.graph->addChild(qTexTsp.get());
 
+    viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
     viewer.setSceneData(p.graph.get());
-
     return viewer.run();
 }
 

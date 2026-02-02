@@ -164,27 +164,27 @@ Pipeline createPipelinePlainOSG(
     ss->addUniform(new osg::Uniform("lightPos", lightPos));
 
     // Pass 4 (transparent objects).
-    p.pass4Transparent = createFloatTextureRectangle(p.textureSize);
-    
     osg::ref_ptr<osg::Camera> pass4 =
-    createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass4Transparent, true);
-    {
-       // 不清颜色！只清深度或什么都不清 why？？
-       //pass4->setClearMask(0);
-       //pass4->setRenderOrder(osg::Camera::POST_RENDER);
-       pass4->addChild(transparentGroup.get());
-       
-       ss = setShaderProgram(pass4, "shaders/pass3.vert", "shaders/pass4.frag");
-        //ss->setTextureAttributeAndModes(0, createTexture("Images/whitemetal_diffuse.jpg"));
-       ss->setTextureAttributeAndModes(0, p.pass3Final);
-       ss->addUniform(new osg::Uniform("sceneColor",0));
-    }
+    createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass3Final);
+    pass4->addChild(transparentGroup.get());      
+    //覆盖renderoder为post_render，确保在final pass之后绘制;
+    pass4->setRenderOrder(osg::Camera::POST_RENDER);
+    //不清除颜色缓存，防止pass3Final先被清除，只清除深度缓存，确保透明对象正确绘制;
+    pass4->setClearMask( GL_DEPTH_BUFFER_BIT);
     
+    // 辅助pass,输出透明对象到单独纹理 
+    p.pass4Transparent = createFloatTextureRectangle(p.textureSize);
+    osg::ref_ptr<osg::Camera> pass5 =
+    createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass4Transparent);
+    pass5->addChild(transparentGroup.get());     
+    pass5->setRenderOrder(osg::Camera::PRE_RENDER);
+
     // Graph.
     p.graph->addChild(pass1);
     p.graph->addChild(pass2);
     p.graph->addChild(pass3);
     p.graph->addChild(pass4);
+    p.graph->addChild(pass5);
     return p;
 }
 
@@ -330,78 +330,3 @@ osg::ref_ptr<osg::StateSet> setShaderProgram(osg::ref_ptr<osg::Camera> pass,
         osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
     return ss;
 }
-
-// int main()
-// {
-//     // Useful declaration.
-//     osg::ref_ptr<osg::StateSet> ss;
-//     // Scene.
-//     osg::Vec3 lightPos(0, 0, 80);
-//     osg::ref_ptr<osg::Group> scene = createSceneRoom();
-//     osg::ref_ptr<osg::LightSource> light = createLight(lightPos);
-//     scene->addChild(light.get());
-//     // Shadowed scene.
-//     osg::ref_ptr<osgShadow::SoftShadowMap> shadowMap = new osgShadow::SoftShadowMap;
-//     shadowMap->setJitteringScale(16);
-//     shadowMap->addShader(osgDB::readRefShaderFile("shaders/pass1Shadow.frag"));
-//     shadowMap->setLight(light.get());
-//     osg::ref_ptr<osgShadow::ShadowedScene> shadowedScene = new osgShadow::ShadowedScene;
-//     shadowedScene->setShadowTechnique(shadowMap.get());
-//     shadowedScene->addChild(scene.get());
-//     Pipeline p = createPipelinePlainOSG(scene, shadowedScene, lightPos);
-//     // Quads to display 1 pass textures.
-//     osg::ref_ptr<osg::Camera> qTexN =
-//         createTextureDisplayQuad(osg::Vec3(0, 0.7, 0),
-//                                  p.pass2Normals,
-//                                  p.textureSize);
-//     osg::ref_ptr<osg::Camera> qTexP =
-//         createTextureDisplayQuad(osg::Vec3(0, 0.35, 0),
-//                                  p.pass2Positions,
-//                                  p.textureSize);
-//     osg::ref_ptr<osg::Camera> qTexC =
-//         createTextureDisplayQuad(osg::Vec3(0, 0, 0),
-//                                  p.pass2Colors,
-//                                  p.textureSize);
-//     // Qaud to display 2 pass shadow texture.
-//     osg::ref_ptr<osg::Camera> qTexS =
-//         createTextureDisplayQuad(osg::Vec3(0.7, 0.7, 0),
-//                                  p.pass1Shadows,
-//                                  p.textureSize);
-//     // Quad to display 3 pass final (screen) texture.
-//     osg::ref_ptr<osg::Camera> qTexFinal =
-//         createTextureDisplayQuad(osg::Vec3(0, 0, 0),
-//                                  p.pass3Final,
-//                                  p.textureSize,
-//                                  1,
-//                                  1);
-//     // Must be processed before the first pass takes
-//     // the result into pass1Shadows texture.
-//     p.graph->insertChild(0, shadowedScene.get());
-//     // Quads are displayed in order, so the biggest one (final) must be first,
-//     // otherwise other quads won't be visible.
-//     p.graph->addChild(qTexFinal.get());
-//     p.graph->addChild(qTexN.get());
-//     p.graph->addChild(qTexP.get());
-//     p.graph->addChild(qTexC.get());
-//     p.graph->addChild(qTexS.get());
-
-//     // Display everything.
-//     osgViewer::Viewer viewer;
-
-//     // add the stats handler
-//     viewer.addEventHandler(new osgViewer::StatsHandler);
-
-//     // Make screenshots with 'c'.
-//     viewer.addEventHandler(
-//         new osgViewer::ScreenCaptureHandler(
-//             new osgViewer::ScreenCaptureHandler::WriteToFile(
-//                 "screenshot",
-//                 "png",
-//                 osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
-
-//     viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
-//     viewer.setSceneData(p.graph.get());
-
-//     return viewer.run();
-// }
-

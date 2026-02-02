@@ -137,7 +137,7 @@ osg::ref_ptr<osg::MatrixTransform> createNormalVector(const osg::Vec3& position,
 osg::ref_ptr<osg::MatrixTransform> createCube(osg::Vec3 Pos,osg::Vec3 color) {
     osg::ref_ptr<osg::Box> box = new osg::Box(osg::Vec3(0,0,0), 10.0f);
     osg::ref_ptr<osg::ShapeDrawable> boxDrawable = new osg::ShapeDrawable(box);
-    boxDrawable->setColor(osg::Vec4(color, 1));
+    boxDrawable->setColor(osg::Vec4(color, 0.5));
 
     osg::ref_ptr<osg::MatrixTransform> cubeTransform = new osg::MatrixTransform();
     cubeTransform->setMatrix(osg::Matrix::translate(Pos));

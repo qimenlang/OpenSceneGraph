@@ -10,3 +10,13 @@ add_custom_command(TARGET ${DR_ENGINE_NAME} POST_BUILD
     COMMAND_EXPAND_LISTS
 )
 
+add_custom_command(TARGET ${DR_ENGINE_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_PDB_FILE:osgViewer>
+        $<TARGET_PDB_FILE:osgDB>
+        $<TARGET_PDB_FILE:osgGA>
+        $<TARGET_PDB_FILE:osgUtil>
+        $<TARGET_PDB_FILE:osg>
+        $<TARGET_PDB_FILE:osgShadow>
+        $<TARGET_FILE_DIR:${DR_ENGINE_NAME}>
+)
