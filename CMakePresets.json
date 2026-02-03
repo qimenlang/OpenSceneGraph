@@ -2,6 +2,26 @@
     "version": 8,
     "configurePresets": [
         {
+            "name": "vs2019-release-amd64",
+            "displayName": "Visual Studio Enterprise 2019 Release - amd64",
+            "description": "将编译器用于 Visual Studio 16 2019 (x64 体系结构)",
+            "generator": "Visual Studio 16 2019",
+            "toolset": "host=x64",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_STANDARD": "14",
+                "BUILD_OSG_PLUGINS_BY_DEFAULT": "ON",
+                "BUILD_OSG_PLUGINS": "ON",
+                "BUILD_OSG_APPLICATIONS": "OFF",
+                "BUILD_OSG_EXAMPLES": "ON"
+            }
+        },
+        {
             "name": "osgengine",
             "displayName": "Visual Studio Enterprise 2026 Release - amd64",
             "description": "将编译器用于 Visual Studio 18 2026 (x64 体系结构)",
@@ -32,7 +52,7 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_STANDARD": "23",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-                "BUILD_OSG_PLUGINS_BY_DEFAULT": "ON",
+                "BUILD_OSG_PLUGINS": "ON",
                 "BUILD_OSG_APPLICATIONS": "OFF",
                 "BUILD_OSG_EXAMPLES": "ON"
             }
