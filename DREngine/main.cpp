@@ -101,10 +101,10 @@ struct PrintGLCallback : public osg::Camera::DrawCallback
     virtual void operator()(osg::RenderInfo& renderInfo) const
     {
   // 获取视图矩阵的逆矩阵
-        // osg::Matrixd viewMatrix = renderInfo.getCurrentCamera()->getViewMatrix();
-        // osg::Matrixd inverseViewMatrix = osg::Matrixd::inverse(viewMatrix);
-        // osg::Vec3d eye = inverseViewMatrix.getTrans();
-        // std::cout << "Camera position: " << eye.x() << ", " << eye.y() << ", " << eye.z() << std::endl;
+    osg::Matrixd viewMatrix = renderInfo.getCurrentCamera()->getViewMatrix();
+    osg::Matrixd inverseViewMatrix = osg::Matrixd::inverse(viewMatrix);
+    osg::Vec3d eye = inverseViewMatrix.getTrans();
+    std::cout << "Camera position: " << eye.x() << ", " << eye.y() << ", " << eye.z() << std::endl;
         if(done) return;
         done = true;
         std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
