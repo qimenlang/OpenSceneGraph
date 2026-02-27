@@ -19,6 +19,7 @@ struct Pipeline
     osg::Texture *pass2Depth;
     osg::Texture *pass3Final;
     osg::Texture *pass5Transparent;
+    osg::Texture *sceneDepth;
 };
 
 osg::TextureRectangle *createFloatTextureRectangle();

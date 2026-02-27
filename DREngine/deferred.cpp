@@ -46,8 +46,8 @@ osg::Texture2D *createDepthTex(int textureSize)
 {
     osg::ref_ptr<osg::Texture2D> tex2D = new osg::Texture2D;
     tex2D->setTextureSize(textureSize, textureSize);
-    tex2D->setInternalFormat(GL_RGBA16F_ARB);
-    tex2D->setSourceFormat(GL_DEPTH_COMPONENT24);
+    tex2D->setInternalFormat(GL_DEPTH_COMPONENT24);
+    tex2D->setSourceFormat(GL_DEPTH_COMPONENT);
     tex2D->setSourceType(GL_UNSIGNED_INT);
     return tex2D.release();
 }
@@ -120,6 +120,7 @@ Pipeline createPipelinePlainOSG(
     p.graph = new osg::Group;
     p.textureSize = 1024;
 
+    p.sceneDepth = createDepthTex(p.textureSize);
     // Pass 1 (shadow).
     p.pass1Shadows = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass1 =
@@ -143,6 +144,8 @@ Pipeline createPipelinePlainOSG(
     pass2->attach(osg::Camera::COLOR_BUFFER1, p.pass2Normals);
     pass2->attach(osg::Camera::COLOR_BUFFER2, p.pass2Colors);
     pass2->attach(osg::Camera::COLOR_BUFFER3, p.pass2Depth);
+    pass2->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth);
+
     pass2->addChild(scene.get());
     double fovy, aspect, zNear, zFar;
     mainCamera->getProjectionMatrixAsPerspective(
@@ -179,17 +182,19 @@ Pipeline createPipelinePlainOSG(
     osg::ref_ptr<osg::Camera> pass4 =
     createRTTCamera( p.pass3Final);
     pass4->attach(osg::Camera::COLOR_BUFFER, p.pass3Final);
+    pass4->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth);
     pass4->addChild(transparentGroup.get());      
     //覆盖renderoder为post_render，确保在final pass之后绘制;
     pass4->setRenderOrder(osg::Camera::POST_RENDER);
-    //不清除颜色缓存，防止pass3Final先被清除，只清除深度缓存，确保透明对象正确绘制;
-    pass4->setClearMask( GL_DEPTH_BUFFER_BIT);
+    pass4->setClearMask( GL_STENCIL_BUFFER_BIT);
     
     // 辅助pass,输出透明对象到单独纹理 
     p.pass5Transparent = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass5 =
     createRTTCamera(p.pass5Transparent);
     pass5->attach(osg::Camera::COLOR_BUFFER, p.pass5Transparent);
+    pass5->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth);
+    pass5->setClearMask( GL_STENCIL_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
     
     pass5->addChild(transparentGroup.get());     
     pass5->setRenderOrder(osg::Camera::PRE_RENDER);
@@ -236,7 +241,7 @@ osg::ref_ptr<osg::Group> createSceneRoom()
     room->setMatrix(osg::Matrix::translate(0, 0, 1));
     // Torus.
     osg::ref_ptr<osg::MatrixTransform> torus = new osg::MatrixTransform;
-    osg::ref_ptr<osg::Node> torusModel = osgDB::readRefNodeFile("avatar.osg");
+    osg::ref_ptr<osg::Node> torusModel = osgDB::readRefNodeFile("torus.osgt");
     torus->addChild(torusModel);
     setAnimationPath(torus, osg::Vec3(0, 0, 15), 6, 16);
     // Torus2.
