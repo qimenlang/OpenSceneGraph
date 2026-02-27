@@ -100,6 +100,11 @@ struct PrintGLCallback : public osg::Camera::DrawCallback
 
     virtual void operator()(osg::RenderInfo& renderInfo) const
     {
+  // 获取视图矩阵的逆矩阵
+        // osg::Matrixd viewMatrix = renderInfo.getCurrentCamera()->getViewMatrix();
+        // osg::Matrixd inverseViewMatrix = osg::Matrixd::inverse(viewMatrix);
+        // osg::Vec3d eye = inverseViewMatrix.getTrans();
+        // std::cout << "Camera position: " << eye.x() << ", " << eye.y() << ", " << eye.z() << std::endl;
         if(done) return;
         done = true;
         std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
@@ -215,7 +220,7 @@ osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
     
     osg::ref_ptr<osg::Camera> qTexTsp =
     createTextureDisplayQuad(osg::Vec3(0.7, 0.35, 0),
-    p.pass5Transparent,
+    p.pass3Final,
     p.textureSize);
                               
     // Qaud to display 2 pass shadow texture.
@@ -226,7 +231,7 @@ osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
     // Quad to display 3 pass final (screen) texture.
     osg::ref_ptr<osg::Camera> qTexFinal =
         createTextureDisplayQuad(osg::Vec3(0, 0, 0),
-                                p.pass3Final,
+                                p.pass5Transparent,
                                 p.textureSize,
                                 1,
                                 1);

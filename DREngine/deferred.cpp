@@ -23,6 +23,7 @@
  */
 
 #include "deferred.h"
+#include "osg/Texture2DMultisample"
 
 #include <osg/AnimationPath>
 #include <osg/PolygonMode>
@@ -42,7 +43,9 @@ USE_SERIALIZER_WRAPPER_LIBRARY(osg)
 USE_GRAPHICSWINDOW()
 #endif
 
-osg::Texture2D *createDepthTex(int textureSize)
+int sampleNum = 8;
+
+osg::Texture2D *createTextureDepth(int textureSize)
 {
     osg::ref_ptr<osg::Texture2D> tex2D = new osg::Texture2D;
     tex2D->setTextureSize(textureSize, textureSize);
@@ -60,6 +63,23 @@ osg::Texture2D *createTexture2D(int textureSize)
     tex2D->setSourceFormat(GL_RGBA);
     tex2D->setSourceType(GL_FLOAT);
     return tex2D.release();
+}
+
+osg::Texture2DMultisample *createTexture2DMSAA(int textureSize,int samples){
+    osg::ref_ptr<osg::Texture2DMultisample> TexMsaa = new osg::Texture2DMultisample;
+    TexMsaa->setTextureSize(textureSize, textureSize);
+    TexMsaa->setInternalFormat(GL_RGBA16F_ARB);
+    TexMsaa->setSourceFormat(GL_RGBA);
+    TexMsaa->setSourceType(GL_FLOAT);
+    TexMsaa->setNumSamples(samples); 
+    return TexMsaa.release();
+}
+osg::Texture2DMultisample *createTextureDepthMSAA(int textureSize,int samples){
+    osg::ref_ptr<osg::Texture2DMultisample> TexMsaa = new osg::Texture2DMultisample;
+    TexMsaa->setTextureSize(textureSize, textureSize);
+    TexMsaa->setInternalFormat(GL_DEPTH_COMPONENT24);
+    TexMsaa->setNumSamples(samples); 
+    return TexMsaa.release();
 }
 
 osg::Camera *createHUDCamera(double left,
@@ -120,7 +140,11 @@ Pipeline createPipelinePlainOSG(
     p.graph = new osg::Group;
     p.textureSize = 1024;
 
-    p.sceneDepth = createDepthTex(p.textureSize);
+    if(sampleNum>0)
+        p.sceneDepth = createTextureDepthMSAA(p.textureSize, sampleNum);
+    else
+        p.sceneDepth = createTextureDepth(p.textureSize);
+
     // Pass 1 (shadow).
     p.pass1Shadows = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass1 =
@@ -140,10 +164,10 @@ Pipeline createPipelinePlainOSG(
     p.pass2Depth     = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass2 =
         createRTTCamera(p.pass2Positions);
-    pass2->attach(osg::Camera::COLOR_BUFFER0, p.pass2Positions);
-    pass2->attach(osg::Camera::COLOR_BUFFER1, p.pass2Normals);
-    pass2->attach(osg::Camera::COLOR_BUFFER2, p.pass2Colors);
-    pass2->attach(osg::Camera::COLOR_BUFFER3, p.pass2Depth);
+    pass2->attach(osg::Camera::COLOR_BUFFER0, p.pass2Positions,0,0,false,sampleNum,sampleNum);
+    pass2->attach(osg::Camera::COLOR_BUFFER1, p.pass2Normals,0,0,false,sampleNum,sampleNum);
+    pass2->attach(osg::Camera::COLOR_BUFFER2, p.pass2Colors,0,0,false,sampleNum,sampleNum);
+    pass2->attach(osg::Camera::COLOR_BUFFER3, p.pass2Depth,0,0,false,sampleNum,sampleNum);
     pass2->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth);
 
     pass2->addChild(scene.get());
@@ -181,7 +205,7 @@ Pipeline createPipelinePlainOSG(
     // Pass 4 (transparent objects).
     osg::ref_ptr<osg::Camera> pass4 =
     createRTTCamera( p.pass3Final);
-    pass4->attach(osg::Camera::COLOR_BUFFER, p.pass3Final);
+    pass4->attach(osg::Camera::COLOR_BUFFER, p.pass3Final,0,0,false,sampleNum,sampleNum);
     pass4->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth);
     pass4->addChild(transparentGroup.get());      
     //覆盖renderoder为post_render，确保在final pass之后绘制;
@@ -192,8 +216,8 @@ Pipeline createPipelinePlainOSG(
     p.pass5Transparent = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass5 =
     createRTTCamera(p.pass5Transparent);
-    pass5->attach(osg::Camera::COLOR_BUFFER, p.pass5Transparent);
-    pass5->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth);
+    pass5->attach(osg::Camera::COLOR_BUFFER, p.pass5Transparent,0,0,false,sampleNum,sampleNum);
+    pass5->attach(osg::Camera::DEPTH_BUFFER, p.sceneDepth,0,0,false,sampleNum,sampleNum);
     pass5->setClearMask( GL_STENCIL_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
     
     pass5->addChild(transparentGroup.get());     
@@ -205,6 +229,7 @@ Pipeline createPipelinePlainOSG(
     p.graph->addChild(pass3);
     p.graph->addChild(pass4);
     p.graph->addChild(pass5);
+    // p.graph->addChild(pass5MS);
     return p;
 }
 
@@ -216,7 +241,7 @@ osg::Camera *createRTTCamera(osg::Texture *tex,
     camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
     camera->setRenderOrder(osg::Camera::PRE_RENDER);
-    if (tex)
+    if (tex && dynamic_cast<osg::Texture2DMultisample*>(tex) == nullptr)
     {
         tex->setFilter(osg::Texture2D::MIN_FILTER, osg::Texture2D::LINEAR);
         tex->setFilter(osg::Texture2D::MAG_FILTER, osg::Texture2D::LINEAR);
