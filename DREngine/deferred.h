@@ -22,7 +22,8 @@ struct Pipeline
     osg::Texture *sceneDepth;
 };
 
-osg::TextureRectangle *createFloatTextureRectangle();
+osg::Texture2D *createDepthTex(int textureSize);
+osg::Texture2D *createTexture2D(int textureSize);
 
 osg::Camera *createHUDCamera(double left   = 0,
                              double right  = 1,

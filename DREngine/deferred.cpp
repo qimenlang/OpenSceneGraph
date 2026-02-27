@@ -52,9 +52,9 @@ osg::Texture2D *createDepthTex(int textureSize)
     return tex2D.release();
 }
 
-osg::TextureRectangle *createFloatTextureRectangle(int textureSize)
+osg::Texture2D *createTexture2D(int textureSize)
 {
-    osg::ref_ptr<osg::TextureRectangle> tex2D = new osg::TextureRectangle;
+    osg::ref_ptr<osg::Texture2D> tex2D = new osg::Texture2D;
     tex2D->setTextureSize(textureSize, textureSize);
     tex2D->setInternalFormat(GL_RGBA16F_ARB);
     tex2D->setSourceFormat(GL_RGBA);
@@ -122,7 +122,7 @@ Pipeline createPipelinePlainOSG(
 
     p.sceneDepth = createDepthTex(p.textureSize);
     // Pass 1 (shadow).
-    p.pass1Shadows = createFloatTextureRectangle(p.textureSize);
+    p.pass1Shadows = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass1 =
         createRTTCamera(p.pass1Shadows);
     pass1->attach(osg::Camera::COLOR_BUFFER, p.pass1Shadows);
@@ -134,10 +134,10 @@ Pipeline createPipelinePlainOSG(
     scene->accept(cts);
 
     // Pass 2 (positions, normals, colors).
-    p.pass2Positions = createFloatTextureRectangle(p.textureSize);
-    p.pass2Normals   = createFloatTextureRectangle(p.textureSize);
-    p.pass2Colors    = createFloatTextureRectangle(p.textureSize);
-    p.pass2Depth     = createFloatTextureRectangle(p.textureSize);
+    p.pass2Positions = createTexture2D(p.textureSize);
+    p.pass2Normals   = createTexture2D(p.textureSize);
+    p.pass2Colors    = createTexture2D(p.textureSize);
+    p.pass2Depth     = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass2 =
         createRTTCamera(p.pass2Positions);
     pass2->attach(osg::Camera::COLOR_BUFFER0, p.pass2Positions);
@@ -161,7 +161,7 @@ Pipeline createPipelinePlainOSG(
     ss->addUniform(new osg::Uniform("uFar", (float)zFar));
 
     // Pass 3 (final).
-    p.pass3Final = createFloatTextureRectangle(p.textureSize);
+    p.pass3Final = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass3 =
         createRTTCamera( p.pass3Final, true);
     pass3->attach(osg::Camera::COLOR_BUFFER, p.pass3Final);
@@ -189,7 +189,7 @@ Pipeline createPipelinePlainOSG(
     pass4->setClearMask( GL_STENCIL_BUFFER_BIT);
     
     // 辅助pass,输出透明对象到单独纹理 
-    p.pass5Transparent = createFloatTextureRectangle(p.textureSize);
+    p.pass5Transparent = createTexture2D(p.textureSize);
     osg::ref_ptr<osg::Camera> pass5 =
     createRTTCamera(p.pass5Transparent);
     pass5->attach(osg::Camera::COLOR_BUFFER, p.pass5Transparent);

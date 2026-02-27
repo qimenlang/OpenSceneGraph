@@ -194,6 +194,7 @@ osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
     shadowedScene->addChild(scene.get());
 
     Pipeline p = createPipelinePlainOSG(scene,tspScene, shadowedScene, lightPos,viewer.getCamera());
+    p.textureSize = 1;
     // Quads to display 1 pass textures.
     osg::ref_ptr<osg::Camera> qTexN =
         createTextureDisplayQuad(osg::Vec3(0, 0.7, 0),
