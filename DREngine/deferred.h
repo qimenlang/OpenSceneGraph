@@ -18,7 +18,7 @@ struct Pipeline
     osg::Texture *pass2Positions;
     osg::Texture *pass2Depth;
     osg::Texture *pass3Final;
-    osg::Texture *pass4Transparent;
+    osg::Texture *pass5Transparent;
 };
 
 osg::TextureRectangle *createFloatTextureRectangle();
@@ -42,8 +42,7 @@ Pipeline createPipelinePlainOSG(
         const osg::Vec3 lightPos,
         osg::ref_ptr<osg::Camera> mainCamera);
 
-osg::Camera *createRTTCamera(osg::Camera::BufferComponent buffer,
-                             osg::Texture *tex,
+osg::Camera *createRTTCamera(osg::Texture *tex,
                              bool isAbsolute = false);
 
 osg::ref_ptr<osg::Group> createSceneRoom();

@@ -112,12 +112,12 @@ struct PrintGLCallback : public osg::Camera::DrawCallback
 osg::ref_ptr<osg::Group> createTransparentGroup(){
     osg::ref_ptr<osg::Group> transparentGroup = new osg::Group();
 
-    osg::ref_ptr<osg::MatrixTransform> teapot1 = createTeapotAtPos(osg::Vec3(0,0,5));
-    osg::ref_ptr<osg::MatrixTransform> teapot2 = createTeapotAtPos(osg::Vec3(0,0,25));
-    osg::ref_ptr<osg::MatrixTransform> cube2 = createCube(osg::Vec3(0,0,15),osg::Vec3(0.0,1.0,0.0));
+    osg::ref_ptr<osg::MatrixTransform> cube0 = createCube(osg::Vec3(0,0,5),osg::Vec3(1.0,0.0,0.0));
+    osg::ref_ptr<osg::MatrixTransform> cube1 = createCube(osg::Vec3(0,0,20),osg::Vec3(0.0,1.0,0.0));
+    osg::ref_ptr<osg::MatrixTransform> cube2 = createCube(osg::Vec3(0,0,35),osg::Vec3(0.0,0.0,1.0));
 
-    transparentGroup->addChild(teapot1.get());
-    transparentGroup->addChild(teapot2.get());
+    transparentGroup->addChild(cube0.get());
+    transparentGroup->addChild(cube1.get());
     transparentGroup->addChild(cube2.get());
 
     // 设置透明属性
@@ -156,17 +156,17 @@ new osgViewer::ScreenCaptureHandler::WriteToFile(
 "png",
 osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
         
-        viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
-        // 明确设置
-        double zNear = 0.1;
-        double zFar  = 2000.0;
-        
-        viewer.getCamera()->setProjectionMatrixAsPerspective(
-            60.0,      // fovy
-            1.0,       // aspect（OSG 会在 resize 时更新）
-            zNear,
-            zFar
-        );
+    viewer.getCamera()->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+    // 明确设置
+    double zNear = 0.1;
+    double zFar  = 2000.0;
+    
+    viewer.getCamera()->setProjectionMatrixAsPerspective(
+        60.0,             // fovy
+        1.0,       // aspect（OSG 会在 resize 时更新）
+        zNear,
+        zFar
+    );
 
     std::string glContextVersion = osg::DisplaySettings::instance()->getGLContextVersion();
     int glContextProfileMask = osg::DisplaySettings::instance()->getGLContextProfileMask();
@@ -214,7 +214,7 @@ osgViewer::ScreenCaptureHandler::WriteToFile::OVERWRITE)));
     
     osg::ref_ptr<osg::Camera> qTexTsp =
     createTextureDisplayQuad(osg::Vec3(0.7, 0.35, 0),
-    p.pass4Transparent,
+    p.pass5Transparent,
     p.textureSize);
                               
     // Qaud to display 2 pass shadow texture.

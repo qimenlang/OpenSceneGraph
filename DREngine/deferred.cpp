@@ -42,6 +42,15 @@ USE_SERIALIZER_WRAPPER_LIBRARY(osg)
 USE_GRAPHICSWINDOW()
 #endif
 
+osg::Texture2D *createDepthTex(int textureSize)
+{
+    osg::ref_ptr<osg::Texture2D> tex2D = new osg::Texture2D;
+    tex2D->setTextureSize(textureSize, textureSize);
+    tex2D->setInternalFormat(GL_RGBA16F_ARB);
+    tex2D->setSourceFormat(GL_DEPTH_COMPONENT24);
+    tex2D->setSourceType(GL_UNSIGNED_INT);
+    return tex2D.release();
+}
 
 osg::TextureRectangle *createFloatTextureRectangle(int textureSize)
 {
@@ -114,7 +123,8 @@ Pipeline createPipelinePlainOSG(
     // Pass 1 (shadow).
     p.pass1Shadows = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass1 =
-        createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass1Shadows);
+        createRTTCamera(p.pass1Shadows);
+    pass1->attach(osg::Camera::COLOR_BUFFER, p.pass1Shadows);
     pass1->addChild(shadowedScene.get());
 
     // pass2 shades expects tangent vectors to be available as texcoord array for texture #1
@@ -128,7 +138,8 @@ Pipeline createPipelinePlainOSG(
     p.pass2Colors    = createFloatTextureRectangle(p.textureSize);
     p.pass2Depth     = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass2 =
-        createRTTCamera(osg::Camera::COLOR_BUFFER0, p.pass2Positions);
+        createRTTCamera(p.pass2Positions);
+    pass2->attach(osg::Camera::COLOR_BUFFER0, p.pass2Positions);
     pass2->attach(osg::Camera::COLOR_BUFFER1, p.pass2Normals);
     pass2->attach(osg::Camera::COLOR_BUFFER2, p.pass2Colors);
     pass2->attach(osg::Camera::COLOR_BUFFER3, p.pass2Depth);
@@ -149,7 +160,8 @@ Pipeline createPipelinePlainOSG(
     // Pass 3 (final).
     p.pass3Final = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass3 =
-        createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass3Final, true);
+        createRTTCamera( p.pass3Final, true);
+    pass3->attach(osg::Camera::COLOR_BUFFER, p.pass3Final);
     pass3->setRenderOrder(osg::Camera::PRE_RENDER);
     ss = setShaderProgram(pass3, "shaders/pass3.vert", "shaders/pass3.frag");
     ss->setTextureAttributeAndModes(0, p.pass2Positions);
@@ -165,7 +177,8 @@ Pipeline createPipelinePlainOSG(
 
     // Pass 4 (transparent objects).
     osg::ref_ptr<osg::Camera> pass4 =
-    createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass3Final);
+    createRTTCamera( p.pass3Final);
+    pass4->attach(osg::Camera::COLOR_BUFFER, p.pass3Final);
     pass4->addChild(transparentGroup.get());      
     //覆盖renderoder为post_render，确保在final pass之后绘制;
     pass4->setRenderOrder(osg::Camera::POST_RENDER);
@@ -173,9 +186,11 @@ Pipeline createPipelinePlainOSG(
     pass4->setClearMask( GL_DEPTH_BUFFER_BIT);
     
     // 辅助pass,输出透明对象到单独纹理 
-    p.pass4Transparent = createFloatTextureRectangle(p.textureSize);
+    p.pass5Transparent = createFloatTextureRectangle(p.textureSize);
     osg::ref_ptr<osg::Camera> pass5 =
-    createRTTCamera(osg::Camera::COLOR_BUFFER, p.pass4Transparent);
+    createRTTCamera(p.pass5Transparent);
+    pass5->attach(osg::Camera::COLOR_BUFFER, p.pass5Transparent);
+    
     pass5->addChild(transparentGroup.get());     
     pass5->setRenderOrder(osg::Camera::PRE_RENDER);
 
@@ -188,12 +203,11 @@ Pipeline createPipelinePlainOSG(
     return p;
 }
 
-osg::Camera *createRTTCamera(osg::Camera::BufferComponent buffer,
-                             osg::Texture *tex,
+osg::Camera *createRTTCamera(osg::Texture *tex,
                              bool isAbsolute)
 {
     osg::ref_ptr<osg::Camera> camera = new osg::Camera;
-    camera->setClearColor(osg::Vec4());
+    camera->setClearColor(osg::Vec4(1,1,1,1));
     camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
     camera->setRenderOrder(osg::Camera::PRE_RENDER);
@@ -202,7 +216,6 @@ osg::Camera *createRTTCamera(osg::Camera::BufferComponent buffer,
         tex->setFilter(osg::Texture2D::MIN_FILTER, osg::Texture2D::LINEAR);
         tex->setFilter(osg::Texture2D::MAG_FILTER, osg::Texture2D::LINEAR);
         camera->setViewport(0, 0, tex->getTextureWidth(), tex->getTextureHeight());
-        camera->attach(buffer, tex);
     }
     if (isAbsolute)
     {
@@ -223,7 +236,7 @@ osg::ref_ptr<osg::Group> createSceneRoom()
     room->setMatrix(osg::Matrix::translate(0, 0, 1));
     // Torus.
     osg::ref_ptr<osg::MatrixTransform> torus = new osg::MatrixTransform;
-    osg::ref_ptr<osg::Node> torusModel = osgDB::readRefNodeFile("torus.osgt");
+    osg::ref_ptr<osg::Node> torusModel = osgDB::readRefNodeFile("avatar.osg");
     torus->addChild(torusModel);
     setAnimationPath(torus, osg::Vec3(0, 0, 15), 6, 16);
     // Torus2.
