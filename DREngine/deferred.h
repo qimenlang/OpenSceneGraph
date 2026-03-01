@@ -47,7 +47,7 @@ Pipeline createPipelinePlainOSG(
         osg::ref_ptr<osg::Camera> mainCamera);
 
 osg::Camera *createRTTCamera(osg::Texture *tex,
-                             bool isAbsolute = false);
+                             bool isAbsolute = false,std::string name = "");
 
 osg::ref_ptr<osg::Group> createSceneRoom();
 osg::ref_ptr<osg::Group> createTransparentGroup();
