@@ -19,6 +19,7 @@ src/osgQt/__
 
 lib/
 bin/
+build/
 
 *.pc
 *.conf
@@ -85,7 +86,7 @@ PlatformSpecifics/Windows/*.rc
 
 # Visual Studio - Cache/Options Directory
 .vs/
-.vscode/*
+.vscode/launch.json
 
 #osx xcode
 DerivedData/

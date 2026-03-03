@@ -1,0 +1,76 @@
+
+#pragma once
+
+#include <osg/Camera>
+#include <osg/Group>
+#include <osg/MatrixTransform>
+#include <osg/Texture2D>
+#include <osg/TextureRectangle>
+#include <osgShadow/ShadowedScene>
+
+struct Pipeline
+{
+    int textureSize;
+    osg::ref_ptr<osg::Group> graph;
+    osg::Texture *pass1Shadows;
+    osg::Texture *pass2Colors;
+    osg::Texture *pass2Normals;
+    osg::Texture *pass2Positions;
+    osg::Texture *pass2Depth;
+    osg::Texture *pass3Final;
+    osg::Texture *pass5Transparent;
+    osg::Texture *sceneDepth;
+};
+
+osg::Texture2D *createTextureDepth(int textureSize);
+osg::Texture2D *createTexture2D(int textureSize);
+osg::Texture2DMultisample *createTextureDepthMSAA(int textureSize,int samples);
+osg::Texture2DMultisample *createTexture2DMSAA(int textureSize,int samples);
+
+osg::Camera *createHUDCamera(double left   = 0,
+                             double right  = 1,
+                             double bottom = 0,
+                             double top    = 1);
+
+osg::ref_ptr<osg::LightSource> createLight(const osg::Vec3 &pos);
+
+Pipeline createPipelineEffectCompositor(
+        osg::ref_ptr<osg::Group> scene,
+        osg::ref_ptr<osgShadow::ShadowedScene> shadowedScene,
+        const osg::Vec3 lightPos);
+
+Pipeline createPipelinePlainOSG(
+        osg::ref_ptr<osg::Group> scene,
+        osg::ref_ptr<osg::Group> transparentGroup,
+        osg::ref_ptr<osgShadow::ShadowedScene> shadowedScene,
+        const osg::Vec3 lightPos,
+        osg::ref_ptr<osg::Camera> mainCamera);
+
+osg::Camera *createRTTCamera(osg::Texture *tex,
+                             bool isAbsolute = false,std::string name = "");
+
+osg::ref_ptr<osg::Group> createSceneRoom();
+osg::ref_ptr<osg::Group> createTransparentGroup();
+
+osg::Geode *createScreenQuad(float width,
+                             float height,
+                             float scale = 1,
+                             osg::Vec3 corner = osg::Vec3());
+
+osg::Texture2D *createTexture(const std::string &fileName);
+
+osg::ref_ptr<osg::Camera> createTextureDisplayQuad(const osg::Vec3 &pos,
+                                                   osg::StateAttribute *tex,
+                                                   float scale,
+                                                   float width  = 0.3,
+                                                   float height = 0.2);
+
+void setAnimationPath(osg::ref_ptr<osg::MatrixTransform> node,
+                      const osg::Vec3 &center,
+                      float time,
+                      float radius);
+
+osg::ref_ptr<osg::StateSet> setShaderProgram(osg::ref_ptr<osg::Camera> pass,
+                                             const std::string& vert,
+                                             const std::string& frag);
+
