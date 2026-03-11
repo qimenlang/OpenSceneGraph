@@ -172,6 +172,7 @@ IF(DYNAMIC_OPENSCENEGRAPH)
     # GL3/GL4 example
     ADD_SUBDIRECTORY(osgsimplegl3)
     ADD_SUBDIRECTORY(osgbindlesstext)
+    add_subdirectory(RotorWashTest)
     IF(OSG_CPP_EXCEPTIONS_AVAILABLE)
         ADD_SUBDIRECTORY(osgunittests)
         ADD_SUBDIRECTORY(osgmemorytest)
