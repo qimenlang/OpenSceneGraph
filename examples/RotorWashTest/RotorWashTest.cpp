@@ -337,6 +337,27 @@ public:
     bool enabled_;
 };
 
+class OceanCallback : public osg::NodeCallback {
+  public:
+    OceanCallback() : osg::NodeCallback(), enabled_(true) {}
+    void operator()(osg::Node* node, osg::NodeVisitor* nv)
+    {
+        if (node && enabled_) {
+            double t = nv->getFrameStamp()->getSimulationTime();
+            auto ss = node->getStateSet();
+            // std::cout<<"Update OceanCallback, time:"<<t<<std::endl;
+            if(ss)
+            {
+                // std::cout<<"Update OceanCallback, for "<<node->getName()<<std::endl;
+                ss->getOrCreateUniform("iTime", osg::Uniform::FLOAT)->set(float(t));
+            }
+        }
+    }
+
+    bool enabled_;      
+    
+};
+
 
 osg::Group* createTeapot()
 {
@@ -388,25 +409,35 @@ osg::ref_ptr<osg::MatrixTransform> createOcean(){
     osg::ref_ptr<osg::Geode> geode = new osg::Geode();
     osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry();
 
+    // 100万个顶点的Mesh (1000x1000)，每个顶点包含位置和纹理坐标
+
+    int size = 500;
+    
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array();
-    vertices->push_back(osg::Vec3(-1, -1, 0));
-    vertices->push_back(osg::Vec3(1, -1, 0));
-    vertices->push_back(osg::Vec3(-1, 1, 0));
-    vertices->push_back(osg::Vec3(1, 1, 0));
-    geometry->setVertexArray(vertices.get());
-
-    // 3. 定义纹理坐标（可选，用于纹理映射）
-    osg::ref_ptr<osg::Vec2Array> texcoords = new osg::Vec2Array;
-    texcoords->push_back(osg::Vec2(0.0f, 0.0f)); // 对应顶点0
-    texcoords->push_back(osg::Vec2(1.0f, 0.0f)); // 对应顶点1
-    texcoords->push_back(osg::Vec2(0.0f, 1.0f)); // 对应顶点2
-    texcoords->push_back(osg::Vec2(1.0f, 1.0f)); // 对应顶点3
-    geometry->setTexCoordArray(0, texcoords);
-
-    // 4. 定义图元（两个三角形，使用索引）
     osg::ref_ptr<osg::DrawElementsUInt> triangles = new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES, 0);
-    triangles->push_back(0); triangles->push_back(1); triangles->push_back(2); // 第一个三角形
-    triangles->push_back(1); triangles->push_back(3); triangles->push_back(2); // 第二个三角形（注意顺序：逆时针）
+    osg::ref_ptr<osg::Vec2Array> texcoords = new osg::Vec2Array;
+    for(int j=0;j<size;j++){     
+        for(int i=0;i<size;i++){
+          vertices->push_back(osg::Vec3(float(i)/size, float(j)/size, 0));
+          // 3. 定义纹理坐标（可选，用于纹理映射）
+          texcoords->push_back(osg::Vec2(float(i)/size, float(j)/size)); 
+      }
+    }
+    geometry->setVertexArray(vertices.get());
+    geometry->setTexCoordArray(0, texcoords);
+    for(int j=0;j<size-1;j++){     
+      for(int i=0;i<size-1;i++){
+        // 4. 定义图元（两个三角形，使用索引）
+        // 计算四个顶点的索引（按行优先）
+        int idx00 = j * size + i;          // 左下
+        int idx10 = j * size + i + 1;      // 右下
+        int idx01 = (j + 1) * size + i;    // 左上
+        int idx11 = (j + 1) * size + i + 1;// 右上
+
+        triangles->push_back(idx00); triangles->push_back(idx10); triangles->push_back(idx01); // 第一个三角形
+        triangles->push_back(idx10); triangles->push_back(idx11); triangles->push_back(idx01); // 第二个三角形（注意顺序：逆时针）
+      }
+    }
     geometry->addPrimitiveSet(triangles);
 
     // 可选：为平面添加纹理
@@ -422,22 +453,20 @@ osg::ref_ptr<osg::MatrixTransform> createOcean(){
 
     // 创建程序对象并附加着色器
     osg::ref_ptr<osg::Program> program = new osg::Program;
+    program->addShader(osgDB::readRefShaderFile(osg::Shader::VERTEX,"shaders/RotorWash/rotor_wash.glsl"));
     program->addShader(osgDB::readRefShaderFile(osg::Shader::VERTEX,"shaders/RotorWash/rotor_wash.vert"));
+    program->addShader(osgDB::readRefShaderFile(osg::Shader::FRAGMENT,"shaders/RotorWash/rotor_wash.glsl"));
     program->addShader(osgDB::readRefShaderFile(osg::Shader::FRAGMENT,"shaders/RotorWash/rotor_wash.frag"));
 
-    // program->addShader(osgDB::readRefShaderFile(osg::Shader::VERTEX,"shaders/pass3.vert"));
-    // program->addShader(osgDB::readRefShaderFile(osg::Shader::FRAGMENT,"shaders/pass3.frag"));
-   
-    auto vertShader = osgDB::readRefShaderFile(osg::Shader::VERTEX,"shaders/RotorWash/rotor_wash.vert");
-
-    if (!vertShader) { // 注意：compileShader() 通常由 Program 自动调用，但可以手动触发检查
-     std::cout << "Failed to read vertex shader" << std::endl;
-    }
-    
     osg::ref_ptr<osg::StateSet> ss = geode->getOrCreateStateSet();
     ss->setAttributeAndModes(
         program.get(),
         osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+
+    geode->setName("OceanGeode");
+    geode->addUpdateCallback(new OceanCallback());
+
+    rootMat->setMatrix(osg::Matrix::scale(10,10,1));
 
     rootMat->addChild(geode.get());
 
