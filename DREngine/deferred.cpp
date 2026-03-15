@@ -43,7 +43,7 @@ USE_SERIALIZER_WRAPPER_LIBRARY(osg)
 USE_GRAPHICSWINDOW()
 #endif
 
-int sampleNum = 8;
+int sampleNum = 0;
 
 osg::Texture2D *createTextureDepth(int textureSize)
 {
@@ -234,13 +234,14 @@ Pipeline createPipelinePlainOSG(
 }
 
 osg::Camera *createRTTCamera(osg::Texture *tex,
-                             bool isAbsolute)
+                             bool isAbsolute,std::string name)
 {
     osg::ref_ptr<osg::Camera> camera = new osg::Camera;
     camera->setClearColor(osg::Vec4(1,1,1,1));
     camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
     camera->setRenderOrder(osg::Camera::PRE_RENDER);
+    camera->setName(name);
     if (tex && dynamic_cast<osg::Texture2DMultisample*>(tex) == nullptr)
     {
         tex->setFilter(osg::Texture2D::MIN_FILTER, osg::Texture2D::LINEAR);
