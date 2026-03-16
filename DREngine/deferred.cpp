@@ -234,7 +234,7 @@ Pipeline createPipelinePlainOSG(
 }
 
 osg::Camera *createRTTCamera(osg::Texture *tex,
-                             bool isAbsolute)
+                             bool isAbsolute,std::string name)
 {
     osg::ref_ptr<osg::Camera> camera = new osg::Camera;
     camera->setClearColor(osg::Vec4(1,1,1,1));

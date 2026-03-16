@@ -462,6 +462,21 @@ osg::ref_ptr<osg::MatrixTransform> createOcean(){
     ss->setAttributeAndModes(
         program.get(),
         osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+    // 涟漪纹理    
+    //Images/whitemetal_diffuse.jpg
+    // osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile("shaders/RotorWash/rotor_wash_ripple_texture.png");
+    osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile("shaders/RotorWash//rotor_wash_ripple_texture_realistic.png");
+
+    if (image)
+    {
+        osg::Texture2D* texture = new osg::Texture2D;
+        texture->setImage(image);
+        texture->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::LINEAR );
+        texture->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::LINEAR );
+        texture->setWrap(osg::Texture2D::WRAP_S, osg::Texture2D::REPEAT);
+        texture->setWrap(osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT);    
+        ss->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+    }
 
     geode->setName("OceanGeode");
     geode->addUpdateCallback(new OceanCallback());
