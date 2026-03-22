@@ -641,6 +641,10 @@ int main(int , char **)
     root->addChild(createLine());
     root->addChild(createOcean());
 
+    viewer->setThreadingModel(osgViewer::Viewer::ThreadingModel::SingleThreaded);
+    viewer->realize();
+    std::cout<<"getThreadingModel:"<< viewer->getThreadingModel()<<std::endl;
+
     viewer->setSceneData( root );
 
     return viewer->run();
