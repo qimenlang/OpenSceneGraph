@@ -30,6 +30,12 @@
 #include <osg/ShapeDrawable>
 #include <osg/LineWidth>
 
+#include <imgui.h>
+#include <imgui_impl_opengl3.h>
+#include "OsgImGuiHandler.hpp"
+
+
+
 
 // The classic OpenGL teapot... taken form glut-3.7/lib/glut/glut_teapot.c
 
@@ -351,6 +357,10 @@ class OceanCallback : public osg::NodeCallback {
                 // std::cout<<"Update OceanCallback, for "<<node->getName()<<std::endl;
                 ss->getOrCreateUniform("iTime", osg::Uniform::FLOAT)->set(float(t));
             }
+
+            // ImGui::Begin("Material");
+            // ImGui::ShowDemoWindow();
+            // ImGui::End();
         }
     }
 
@@ -462,21 +472,6 @@ osg::ref_ptr<osg::MatrixTransform> createOcean(){
     ss->setAttributeAndModes(
         program.get(),
         osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-    // 涟漪纹理    
-    //Images/whitemetal_diffuse.jpg
-    // osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile("shaders/RotorWash/rotor_wash_ripple_texture.png");
-    osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile("shaders/RotorWash//rotor_wash_ripple_texture_realistic.png");
-
-    if (image)
-    {
-        osg::Texture2D* texture = new osg::Texture2D;
-        texture->setImage(image);
-        texture->setFilter( osg::Texture2D::MIN_FILTER, osg::Texture2D::LINEAR );
-        texture->setFilter( osg::Texture2D::MAG_FILTER, osg::Texture2D::LINEAR );
-        texture->setWrap(osg::Texture2D::WRAP_S, osg::Texture2D::REPEAT);
-        texture->setWrap(osg::Texture2D::WRAP_T, osg::Texture2D::REPEAT);    
-        ss->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
-    }
 
     geode->setName("OceanGeode");
     geode->addUpdateCallback(new OceanCallback());
@@ -617,10 +612,40 @@ osg::Group* createLine()
     return root;
 }
 
+class ImGuiInitOperation : public osg::Operation
+{
+public:
+    ImGuiInitOperation()
+        : osg::Operation("ImGuiInitOperation", false)
+    {
+    }
+
+    void operator()(osg::Object* object) override
+    {
+        osg::GraphicsContext* context = dynamic_cast<osg::GraphicsContext*>(object);
+        if (!context)
+            return;
+
+        if (!ImGui_ImplOpenGL3_Init())
+        {
+            std::cout << "ImGui_ImplOpenGL3_Init() failed\n";
+        }
+    }
+};
+
+class ImGuiDemo : public OsgImGuiHandler
+{
+protected:
+    void drawUi() override
+    {
+        // ImGui code goes here...
+        ImGui::ShowDemoWindow();
+    }
+};
+
+
 int main(int , char **)
 {
-#if 1
-
     // create viewer on heap as a test, this looks to be causing problems
     // on init on some platforms, and seg fault on exit when multi-threading on linux.
     // Normal stack based version below works fine though...
@@ -642,23 +667,17 @@ int main(int , char **)
     root->addChild(createOcean());
 
     viewer->setThreadingModel(osgViewer::Viewer::ThreadingModel::SingleThreaded);
+
+    
+    viewer->setRealizeOperation(new ImGuiInitOperation);
+    viewer->addEventHandler(new ImGuiDemo);
+
     viewer->realize();
     std::cout<<"getThreadingModel:"<< viewer->getThreadingModel()<<std::endl;
 
     viewer->setSceneData( root );
 
+
     return viewer->run();
-
-#else
-
-    // construct the viewer.
-    osgViewer::Viewer viewer;
-
-    // add model to viewer.
-    viewer.setSceneData( createTeapot() );
-
-    // create the windows and run the threads.
-    return viewer.run();
-#endif
 
 }

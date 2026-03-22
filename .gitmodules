@@ -1,3 +1,6 @@
 [submodule "thirdparty/OpenSceneGraph-Data"]
 	path = thirdparty/OpenSceneGraph-Data
 	url = git@github.com:openscenegraph/OpenSceneGraph-Data.git
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = git@github.com:ocornut/imgui.git

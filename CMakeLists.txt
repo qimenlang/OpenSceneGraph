@@ -1422,5 +1422,5 @@ ADD_CUSTOM_TARGET(uninstall
 include(FeatureSummary)
 feature_summary(WHAT ALL)
 
-
+add_subdirectory("thirdparty")
 add_subdirectory("DREngine")
