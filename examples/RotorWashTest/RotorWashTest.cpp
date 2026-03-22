@@ -41,6 +41,14 @@ std::string Vec3ToString(const T& vec) {
     return ss.str();
 }
 
+struct VortexPara {
+    float amp = 0.1; 
+    float len = 0.04;
+    float speed = 0.08;
+}; 
+
+static VortexPara vortexPara;
+
 class RotateCallback : public osg::NodeCallback {
 public:
     RotateCallback() : osg::NodeCallback(), enabled_(true) {}
@@ -76,6 +84,9 @@ class OceanCallback : public osg::NodeCallback {
             {
                 // std::cout<<"Update OceanCallback, for "<<node->getName()<<std::endl;
                 ss->getOrCreateUniform("iTime", osg::Uniform::FLOAT)->set(float(t));
+                ss->getOrCreateUniform("vortexPara.amp", osg::Uniform::FLOAT)->set(vortexPara.amp);
+                ss->getOrCreateUniform("vortexPara.len", osg::Uniform::FLOAT)->set(vortexPara.len);
+                ss->getOrCreateUniform("vortexPara.speed", osg::Uniform::FLOAT)->set(vortexPara.speed);
             }
 
             // ImGui::Begin("Material");
@@ -315,8 +326,18 @@ class ImGuiDemo : public OsgImGuiHandler
 protected:
     void drawUi() override
     {
-        // ImGui code goes here...
-        ImGui::ShowDemoWindow();
+
+    ImGui::Begin("Rotor Wash");
+    if (ImGui::CollapsingHeader("vertor para")) {
+        ImGui::Indent();
+        ImGui::SliderFloat("vortex amp", &vortexPara.amp, 0.0f, 1.0f);
+        ImGui::SliderFloat("vortex len", &vortexPara.len, 0.0f, 1.0f);
+        ImGui::SliderFloat("vortex speed", &vortexPara.speed, 0.0f, 1.0f);
+        ImGui::Unindent();
+    }
+    ImGui::End();
+    // // ImGui code goes here...
+    // ImGui::ShowDemoWindow();
     }
 };
 
