@@ -1,3 +1,6 @@
 [submodule "thirdparty/OpenSceneGraph-Data"]
 	path = thirdparty/OpenSceneGraph-Data
 	url = git@github.com:openscenegraph/OpenSceneGraph-Data.git
+[submodule "thirdparty/SPARK"]
+	path = thirdparty/SPARK
+	url = git@github.com:qimenlang/SPARK.git
