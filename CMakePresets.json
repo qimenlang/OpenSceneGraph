@@ -1,4 +1,4 @@
-{
+﻿{
     "version": 8,
     "configurePresets": [
         {
@@ -50,12 +50,32 @@
                 "CMAKE_CXX_FLAGS": "/utf-8",
                 "CMAKE_C_FLAGS": "/utf-8",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_STANDARD": "23",
+                "CMAKE_CXX_STANDARD": "17",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
                 "BUILD_OSG_PLUGINS_BY_DEFAULT": "ON",
                 "BUILD_OSG_PLUGINS": "ON",
                 "BUILD_OSG_APPLICATIONS": "OFF",
+                "BUILD_OSG_EXAMPLES": "ON"
+            }
+        },
+        {
+            "name": "osgengine-ninja-clangcl",
+            "displayName": "osgengine-ninja-clangcl",
+            "description": "Ninja+clang-cl",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "clang-cl.exe",
+                "CMAKE_CXX_COMPILER": "clang-cl.exe",
+                "CMAKE_CXX_FLAGS": "/utf-8",
+                "CMAKE_C_FLAGS": "/utf-8",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_STANDARD": "17",
+                "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+                "BUILD_OSG_PLUGINS_BY_DEFAULT": "ON",
+                "BUILD_OSG_PLUGINS": "ON",
+                "BUILD_OSG_APPLICATIONS": "OFF",    
                 "BUILD_OSG_EXAMPLES": "ON"
             }
         }
@@ -71,7 +91,8 @@
             "name": "osgengine-debug-ninja-cl",
             "description": "osgengine-debug-ninja-cl",
             "displayName": "osgengine-debug-ninja-cl",
-            "configurePreset": "osgengine-ninja-cl"
+            "configurePreset": "osgengine-ninja-cl",
+            "configuration": "Debug"
         }
     ]
 }

@@ -6,4 +6,4 @@ SET(TARGET_SRC SparkEditor.cpp
 #### end var setup  ###
 SETUP_EXAMPLE(SparkEditor)
 
-target_link_libraries(example_SparkEditor imgui)
+target_link_libraries(example_SparkEditor imgui SPARK SPARK_GL)

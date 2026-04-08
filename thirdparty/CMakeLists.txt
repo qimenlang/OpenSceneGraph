@@ -9,3 +9,5 @@ file(GLOB IMGUI_SOURCES
 add_library(imgui STATIC ${IMGUI_SOURCES})
 target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 
+add_subdirectory(SPARK/projects/engine)
+

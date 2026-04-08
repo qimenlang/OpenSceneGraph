@@ -1,4 +1,4 @@
-/* -*-c++-*- OpenSceneGraph - Copyright (C) 1998-2004 Robert Osfield
+﻿/* -*-c++-*- OpenSceneGraph - Copyright (C) 1998-2004 Robert Osfield
  *
  * This library is open source and may be redistributed and/or modified under
  * the terms of the OpenSceneGraph Public License (OSGPL) version 0.0 or
@@ -16,6 +16,8 @@
 #include <fstream>
 #include <string>
 #include <stdio.h>
+#include <algorithm>
+#include <cctype>
 #include <functional>
 
 #include "obj.h"
@@ -38,8 +40,10 @@ using namespace obj;
 static std::string strip( const std::string& ss )
 {
     std::string result;
-    result.assign( std::find_if( ss.begin(), ss.end(), std::not1( std::ptr_fun< int, int >( isspace ) ) ),
-                   std::find_if( ss.rbegin(), ss.rend(), std::not1( std::ptr_fun< int, int >( isspace ) ) ).base() );
+    const auto notSpace = [](unsigned char c) { return !std::isspace(c); };
+    result.assign(
+        std::find_if(ss.begin(), ss.end(), [&](char c) { return notSpace(static_cast<unsigned char>(c)); }),
+        std::find_if(ss.rbegin(), ss.rend(), [&](char c) { return notSpace(static_cast<unsigned char>(c)); }).base());
     return( result );
 }
 
