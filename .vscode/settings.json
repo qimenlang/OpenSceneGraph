@@ -127,7 +127,7 @@
         }
     },
     "terminal.integrated.defaultProfile.windows": "Git Bash",
-    "cmake.outputLogEncoding": "utf8",
+    "cmake.outputLogEncoding": "gbk",
     "cmake.useCMakePresets": "always",
     //防止 CMake Tools 干扰 clangd
     "cmake.configureOnOpen": false,
