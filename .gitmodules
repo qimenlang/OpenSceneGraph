@@ -4,3 +4,6 @@
 [submodule "thirdparty/SPARK"]
 	path = thirdparty/SPARK
 	url = git@github.com:qimenlang/SPARK.git
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = git@github.com:ocornut/imgui.git
