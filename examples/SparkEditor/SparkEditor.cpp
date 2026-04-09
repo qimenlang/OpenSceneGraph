@@ -19,6 +19,7 @@
 #include <osg/Geode>
 #include <osg/TexGen>
 #include <osg/Texture2D>
+#include <osg/Drawable>
 
 #include <osgDB/ReadFile>
 
@@ -29,10 +30,14 @@
 #include <osgUtil/PrintVisitor>
 #include <osg/ShapeDrawable>
 #include <osg/LineWidth>
+#include <osg/BlendFunc>
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include "OsgImGuiHandler.hpp"
+
+#include <SPARK.h>
+#include <SPARK_GL.h>
 
 template<typename T>
 std::string Vec3ToString(const T& vec) {
@@ -341,6 +346,179 @@ protected:
     }
 };
 
+namespace {
+
+GLuint createSparkAtlasTexture()
+{
+    // 2x2 atlas texture used by GLQuadRenderer::setAtlasDimensions(2, 2).
+    const GLubyte pixels[] = {
+        255, 176, 96, 64,
+        176, 128, 80, 48,
+        96,  80,  48, 32,
+        64,  48,  32, 16
+    };
+
+    GLuint textureId = 0;
+    glGenTextures(1, &textureId);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_LUMINANCE,
+        4,
+        4,
+        0,
+        GL_LUMINANCE,
+        GL_UNSIGNED_BYTE,
+        pixels);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return textureId;
+}
+
+SPK::Ref<SPK::System> createSparkSystem(GLuint textureId)
+{
+    SPK::Ref<SPK::System> system = SPK::System::create(true);
+    system->setName("SparkEditor_System");
+
+    SPK::Ref<SPK::GL::GLQuadRenderer> renderer = SPK::GL::GLQuadRenderer::create();
+    renderer->setBlendMode(SPK::BLEND_MODE_ADD);
+    renderer->enableRenderingOption(SPK::RENDERING_OPTION_DEPTH_WRITE, false);
+    renderer->setTexture(textureId);
+    renderer->setTexturingMode(SPK::TEXTURE_MODE_2D);
+    renderer->setAtlasDimensions(2, 2);
+
+    SPK::Ref<SPK::SphericEmitter> emitter = SPK::SphericEmitter::create(
+        SPK::Vector3D(0.0f, 0.0f, -1.0f),
+        0.0f,
+        3.14159f / 4.0f,
+        SPK::Point::create(),
+        true,
+        -1,
+        100.0f,
+        0.2f,
+        0.5f);
+
+    SPK::Ref<SPK::Group> phantomGroup = system->createGroup(40);
+    SPK::Ref<SPK::Group> trailGroup = system->createGroup(1000);
+    SPK::Ref<SPK::Plane> ground = SPK::Plane::create(SPK::Vector3D(0.0f, -1.0f, 0.0f));
+
+    phantomGroup->setLifeTime(5.0f, 5.0f);
+    phantomGroup->setRadius(0.06f);
+    phantomGroup->addEmitter(SPK::SphericEmitter::create(
+        SPK::Vector3D(0.0f, 1.0f, 0.0f),
+        0.0f,
+        3.14159f / 4.0f,
+        SPK::Point::create(SPK::Vector3D(0.0f, -1.0f, 0.0f)),
+        true,
+        -1,
+        2.0f,
+        1.2f,
+        2.0f));
+    phantomGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -1.0f, 0.0f)));
+    phantomGroup->addModifier(SPK::Obstacle::create(ground, 0.8f));
+    phantomGroup->addModifier(SPK::EmitterAttacher::create(trailGroup, emitter, true));
+
+    trailGroup->setLifeTime(0.5f, 1.0f);
+    trailGroup->setRadius(0.06f);
+    trailGroup->setRenderer(renderer);
+    trailGroup->setColorInterpolator(SPK::ColorSimpleInterpolator::create(0xFF802080, 0xFF000000));
+    trailGroup->setParamInterpolator(SPK::PARAM_TEXTURE_INDEX, SPK::FloatRandomInitializer::create(0.0f, 4.0f));
+    trailGroup->setParamInterpolator(SPK::PARAM_ROTATION_SPEED, SPK::FloatRandomInitializer::create(-0.1f, 1.0f));
+    trailGroup->setParamInterpolator(SPK::PARAM_ANGLE, SPK::FloatRandomInitializer::create(0.0f, 2.0f * 3.14159f));
+    trailGroup->addModifier(SPK::Rotator::create());
+    trailGroup->addModifier(SPK::Destroyer::create(ground));
+
+    return system;
+}
+
+class SparkParticlesDrawable : public osg::Drawable
+{
+public:
+    SparkParticlesDrawable()
+        : _initialized(false), _textureId(0), _lastSimulationTime(-1.0)
+    {
+        setSupportsDisplayList(false);
+        setUseVertexBufferObjects(false);
+        setDataVariance(osg::Object::DYNAMIC);
+        setInitialBound(osg::BoundingBox(-1000.0f, -1000.0f, -1000.0f, 1000.0f, 1000.0f, 1000.0f));
+    }
+
+    SparkParticlesDrawable(const SparkParticlesDrawable& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
+        : osg::Drawable(copy, copyop),
+          _initialized(copy._initialized),
+          _textureId(copy._textureId),
+          _system(copy._system),
+          _lastSimulationTime(copy._lastSimulationTime)
+    {}
+
+    META_Object(example_SparkEditor, SparkParticlesDrawable);
+
+    void drawImplementation(osg::RenderInfo& renderInfo) const override
+    {
+        if (!_initialized)
+        {
+            SPK::System::setClampStep(true, 0.1f);
+            SPK::System::useAdaptiveStep(0.001f, 0.01f);
+            _textureId = createSparkAtlasTexture();
+            _system = createSparkSystem(_textureId);
+            _initialized = true;
+        }
+
+        if (!_system)
+            return;
+
+        const osg::FrameStamp* frameStamp = renderInfo.getState()->getFrameStamp();
+        if (frameStamp)
+        {
+            const double now = frameStamp->getSimulationTime();
+            float deltaTime = 1.0f / 60.0f;
+            if (_lastSimulationTime >= 0.0)
+                deltaTime = static_cast<float>(now - _lastSimulationTime);
+            _lastSimulationTime = now;
+
+            if (deltaTime < 0.0001f)
+                deltaTime = 1.0f / 60.0f;
+            _system->updateParticles(deltaTime);
+        }
+
+        SPK::GL::GLRenderer::saveGLStates();
+        _system->renderParticles();
+        SPK::GL::GLRenderer::restoreGLStates();
+    }
+
+private:
+    mutable bool _initialized;
+    mutable GLuint _textureId;
+    mutable SPK::Ref<SPK::System> _system;
+    mutable double _lastSimulationTime;
+};
+
+osg::ref_ptr<osg::MatrixTransform> createSparkNode()
+{
+    osg::ref_ptr<osg::MatrixTransform> rootMat = new osg::MatrixTransform();
+
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode();
+    geode->setCullingActive(false);
+    geode->addDrawable(new SparkParticlesDrawable());
+
+    osg::StateSet* ss = geode->getOrCreateStateSet();
+    ss->setAttributeAndModes(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE), osg::StateAttribute::ON);
+    ss->setMode(GL_BLEND, osg::StateAttribute::ON);
+    ss->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+
+    // Move particles slightly in front of the default camera.
+    rootMat->setMatrix(osg::Matrix::translate(0.0f, 0.0f, -2.0f));
+    rootMat->addChild(geode.get());
+    return rootMat;
+}
+
+} // namespace
+
 
 int main(int , char **)
 {
@@ -363,8 +541,13 @@ int main(int , char **)
     osg::Group* root = new osg::Group();
     root->addChild(createLine());
     root->addChild(createOcean());
+    root->addChild(createSparkNode());
 
     viewer->setThreadingModel(osgViewer::Viewer::ThreadingModel::SingleThreaded);
+    viewer->getCamera()->setViewMatrixAsLookAt(
+        osg::Vec3d(0.0, 0.0, 3.0),
+        osg::Vec3d(0.0, 0.0, 0.0),
+        osg::Vec3d(0.0, 1.0, 0.0));
 
     
     viewer->setRealizeOperation(new ImGuiInitOperation);
