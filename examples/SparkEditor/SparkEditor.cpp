@@ -52,6 +52,33 @@ struct VortexPara {
     float speed = 0.08;
 }; 
 
+struct CameraInfo {
+    osg::Vec3 pos;
+    osg::Vec3 rot;   // Euler (rad)
+    osg::Vec3 scale;
+};
+
+CameraInfo ExtractCameraInfo(osg::Camera* cam)
+{
+    CameraInfo info;
+
+    osg::Matrix viewMat = cam->getViewMatrix();
+    osg::Matrix invMat = osg::Matrix::inverse(viewMat); // ⭐关键
+
+    osg::Quat rotation;
+    osg::Vec3 translation;
+    osg::Vec3 scale;
+    osg::Quat so;
+
+    invMat.decompose(translation, rotation, scale, so);
+
+    info.pos = translation;
+    info.scale = scale;
+    info.rot = rotation.asVec3(); // 欧拉角（注意不是很好用）
+
+    return info;
+}
+
 static VortexPara vortexPara;
 
 class RotateCallback : public osg::NodeCallback {
@@ -105,16 +132,14 @@ class OceanCallback : public osg::NodeCallback {
 };
 
 
-osg::ref_ptr<osg::MatrixTransform> createOcean(){
+osg::ref_ptr<osg::MatrixTransform> createPlane(){
     osg::ref_ptr<osg::MatrixTransform> rootMat = new osg::MatrixTransform();
     
     // 创建mesh
     osg::ref_ptr<osg::Geode> geode = new osg::Geode();
     osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry();
 
-    // 100万个顶点的Mesh (1000x1000)，每个顶点包含位置和纹理坐标
-
-    int size = 500;
+    int size = 100;
     
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array();
     osg::ref_ptr<osg::DrawElementsUInt> triangles = new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES, 0);
@@ -143,30 +168,9 @@ osg::ref_ptr<osg::MatrixTransform> createOcean(){
     }
     geometry->addPrimitiveSet(triangles);
 
-    // 可选：为平面添加纹理
-    // osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
-    // osg::ref_ptr<osg::Image> image = osgDB::readImageFile("Images/whitemetal_diffuse.jpg"); // 请替换为实际图片路径
-    // if (image)
-    // {
-    //     texture->setImage(image);
-    //     geode->getOrCreateStateSet()->setTextureAttributeAndModes(0, texture);
-    // }
-
     geode->addDrawable(geometry.get());
 
-    // 创建程序对象并附加着色器
-    osg::ref_ptr<osg::Program> program = new osg::Program;
-    program->addShader(osgDB::readRefShaderFile(osg::Shader::VERTEX,"shaders/RotorWash/rotor_wash.glsl"));
-    program->addShader(osgDB::readRefShaderFile(osg::Shader::VERTEX,"shaders/RotorWash/rotor_wash.vert"));
-    program->addShader(osgDB::readRefShaderFile(osg::Shader::FRAGMENT,"shaders/RotorWash/rotor_wash.glsl"));
-    program->addShader(osgDB::readRefShaderFile(osg::Shader::FRAGMENT,"shaders/RotorWash/rotor_wash.frag"));
-
-    osg::ref_ptr<osg::StateSet> ss = geode->getOrCreateStateSet();
-    ss->setAttributeAndModes(
-        program.get(),
-        osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-
-    geode->setName("OceanGeode");
+    geode->setName("plane");
     geode->addUpdateCallback(new OceanCallback());
 
     rootMat->setMatrix(osg::Matrix::scale(10,10,1));
@@ -270,15 +274,13 @@ osg::ref_ptr<osg::MatrixTransform> createCube(osg::Vec3 Pos,osg::Vec3 color) {
     return cubeTransform;
 }
 
-osg::Group* createLine()
+osg::Group* createCoord()
 {
-    // 把 geode 放进一个新的 Group，从而确保返回的对象拥有并保持对 geode 的引用。
     osg::Group* root = new osg::Group();
 
     osg::Vec3 ori = osg::Vec3(0, 0, 0);
     osg::Vec3 dir = osg::Vec3(1, 1, 1);
     dir.normalize();
-    // 使用示例
     osg::ref_ptr<osg::MatrixTransform> line = createNormalVector(
         ori,    // 起点
         dir     // 方向
@@ -300,7 +302,7 @@ osg::Group* createLine()
     root->addChild(coordZ.get());
 
     root->addChild(line.get());
-    root->setName("line_root");
+    root->setName("coord");
 
     return root;
 }
@@ -328,22 +330,48 @@ public:
 
 class ImGuiDemo : public OsgImGuiHandler
 {
+public:
+    ImGuiDemo(osgViewer::Viewer* viewer)
+        : _viewer(viewer) {}
+
 protected:
     void drawUi() override
     {
+        ImGui::Begin("Rotor Wash");
 
-    ImGui::Begin("Rotor Wash");
-    if (ImGui::CollapsingHeader("vertor para")) {
-        ImGui::Indent();
-        ImGui::SliderFloat("vortex amp", &vortexPara.amp, 0.0f, 1.0f);
-        ImGui::SliderFloat("vortex len", &vortexPara.len, 0.0f, 1.0f);
-        ImGui::SliderFloat("vortex speed", &vortexPara.speed, 0.0f, 1.0f);
-        ImGui::Unindent();
+        // ===== 相机信息 =====
+        if (_viewer)
+        {
+            osg::Camera* cam = _viewer->getCamera();
+            CameraInfo info = ExtractCameraInfo(cam);
+
+            ImGui::Separator();
+            ImGui::Text("Camera Info");
+
+            ImGui::Text("Pos: %.3f %.3f %.3f",
+                info.pos.x(), info.pos.y(), info.pos.z());
+
+            ImGui::Text("Rot(rad): %.3f %.3f %.3f",
+                info.rot.x(), info.rot.y(), info.rot.z());
+
+            ImGui::Text("Scale: %.3f %.3f %.3f",
+                info.scale.x(), info.scale.y(), info.scale.z());
+        }
+
+        // ===== 你原有参数 =====
+        if (ImGui::CollapsingHeader("vortex para")) {
+            ImGui::Indent();
+            ImGui::SliderFloat("vortex amp", &vortexPara.amp, 0.0f, 1.0f);
+            ImGui::SliderFloat("vortex len", &vortexPara.len, 0.0f, 1.0f);
+            ImGui::SliderFloat("vortex speed", &vortexPara.speed, 0.0f, 1.0f);
+            ImGui::Unindent();
+        }
+
+        ImGui::End();
     }
-    ImGui::End();
-    // // ImGui code goes here...
-    // ImGui::ShowDemoWindow();
-    }
+
+private:
+    osgViewer::Viewer* _viewer;
 };
 
 namespace {
@@ -444,7 +472,7 @@ public:
         setSupportsDisplayList(false);
         setUseVertexBufferObjects(false);
         setDataVariance(osg::Object::DYNAMIC);
-        setInitialBound(osg::BoundingBox(-1000.0f, -1000.0f, -1000.0f, 1000.0f, 1000.0f, 1000.0f));
+        setInitialBound(osg::BoundingBox(-10, -10, -10, 10, 10, 10));
     }
 
     SparkParticlesDrawable(const SparkParticlesDrawable& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
@@ -512,7 +540,7 @@ osg::ref_ptr<osg::MatrixTransform> createSparkNode()
     ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
 
     // Move particles slightly in front of the default camera.
-    rootMat->setMatrix(osg::Matrix::translate(0.0f, 0.0f, -2.0f));
+    rootMat->setMatrix(osg::Matrix::translate(0.0f, 0.0f, 0.0f));
     rootMat->addChild(geode.get());
     return rootMat;
 }
@@ -539,19 +567,13 @@ int main(int , char **)
 
     // add model to viewer.
     osg::Group* root = new osg::Group();
-    root->addChild(createLine());
-    root->addChild(createOcean());
+    root->addChild(createCoord());
+    root->addChild(createPlane());
     root->addChild(createSparkNode());
-
-    viewer->setThreadingModel(osgViewer::Viewer::ThreadingModel::SingleThreaded);
-    viewer->getCamera()->setViewMatrixAsLookAt(
-        osg::Vec3d(0.0, 0.0, 3.0),
-        osg::Vec3d(0.0, 0.0, 0.0),
-        osg::Vec3d(0.0, 1.0, 0.0));
-
     
+    viewer->setThreadingModel(osgViewer::Viewer::ThreadingModel::SingleThreaded);
     viewer->setRealizeOperation(new ImGuiInitOperation);
-    viewer->addEventHandler(new ImGuiDemo);
+    viewer->addEventHandler(new ImGuiDemo(viewer.get()));
 
     viewer->realize();
     std::cout<<"getThreadingModel:"<< viewer->getThreadingModel()<<std::endl;
