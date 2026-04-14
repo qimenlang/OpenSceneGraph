@@ -135,7 +135,11 @@
     "cmake.enableAutomaticKitScan": false,
     "cmake.enableKitScan": false,
 
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/out/build/ninja-msvc/compile_commands.json",
+    // 注意：CMake Tools 在 Windows+MSVC 下默认使用 cppvsdbg。Cursor 未注册该调试类型（微软调试组件许可限制），
+    // 侧栏 Debug 会报「cppvsdbg is not supported」。请勿在此写入 type:cppvsdbg；可用 Visual Studio 调试同一 exe，
+    // 或临时用官方 VS Code 调试，或 clang-cl 构建 + CodeLLDB。
+
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/out/build/osgengine-ninja-cl/compile_commands.json",
     // 配置 ninja-msvc + clangd 代码跳转 
     // 1.指定 clangd 本体
     "clangd.path": "C:/Program Files/LLVM/bin/clangd.exe",

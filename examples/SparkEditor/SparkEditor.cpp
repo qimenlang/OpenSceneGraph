@@ -35,9 +35,13 @@
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include "OsgImGuiHandler.hpp"
+#include "EditorCore/SparkEditorCore.h"
 
 #include <SPARK.h>
 #include <SPARK_GL.h>
+#include <algorithm>
+#include <sstream>
+#include <string>
 
 
 template<typename T>
@@ -81,11 +85,6 @@ CameraInfo ExtractCameraInfo(osg::Camera* cam)
 }
 
 static VortexPara vortexPara;
-
-static SPK::Ref<SPK::ColorSimpleInterpolator> colorInterpolator;
-
-static ImVec4 beginColor = ImVec4(1.0f, 0.0f, 0.0f, 1.0f) ;
-static ImVec4 EndColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f) ;
 
 class RotateCallback : public osg::NodeCallback {
 public:
@@ -137,37 +136,6 @@ class OceanCallback : public osg::NodeCallback {
     
 };
 
-class ParticleCallback : public osg::NodeCallback {
-public:
-    ParticleCallback() : osg::NodeCallback(), enabled_(true) {}
-    void operator()(osg::Node* node, osg::NodeVisitor* nv)
-    {
-        // 确保值在 [0,1] 范围内，乘以 255 并四舍五入
-        auto toUint8 = [](float v) -> uint8_t {
-            v = std::clamp(v, 0.0f, 1.0f);
-            return static_cast<uint8_t>(v * 255.0f + 0.5f);
-        };
-
-        if (node && enabled_ && colorInterpolator) {
-            SPK::Color c1(
-                toUint8(beginColor.x),
-                toUint8(beginColor.y),
-                toUint8(beginColor.z),
-                toUint8(beginColor.w)
-            );
-            SPK::Color c2(
-                toUint8(EndColor.x),
-                toUint8(EndColor.y),
-                toUint8(EndColor.z),
-                toUint8(EndColor.w)
-            );
-            colorInterpolator->setValues(c1,c2);
-        };
-        traverse(node, nv);
-    }
-
-    bool enabled_;
-};
 
 osg::ref_ptr<osg::MatrixTransform> createPlane(){
     osg::ref_ptr<osg::MatrixTransform> rootMat = new osg::MatrixTransform();
@@ -365,6 +333,8 @@ public:
     }
 };
 
+namespace { void DrawSparkEditorPanel(); }
+
 class ImGuiDemo : public OsgImGuiHandler
 {
 public:
@@ -395,11 +365,10 @@ protected:
                 info.scale.x(), info.scale.y(), info.scale.z());
         }
 
-        // 粒子参数测试
-        if (ImGui::CollapsingHeader("Particle Color Interpolator")) {
+        if (ImGui::CollapsingHeader("SPARK Auto Editor", ImGuiTreeNodeFlags_DefaultOpen))
+        {
             ImGui::Indent();
-            ImGui::ColorEdit4("BeginColor", (float*)&beginColor);
-            ImGui::ColorEdit4("EndColor", (float*)&EndColor);
+            DrawSparkEditorPanel();
             ImGui::Unindent();
         }
 
@@ -411,6 +380,10 @@ private:
 };
 
 namespace {
+
+class SparkParticlesDrawable;
+static SparkParticlesDrawable* gSparkParticlesDrawable = nullptr;
+void DrawSparkEditorPanel();
 
 GLuint createSparkAtlasTexture()
 {
@@ -489,9 +462,6 @@ SPK::Ref<SPK::System> createSparkSystem(GLuint textureId)
     trailGroup->setLifeTime(0.5f, 1.0f);
     trailGroup->setRadius(0.06f);
     trailGroup->setRenderer(renderer);
-    // trailGroup->setColorInterpolator(SPK::ColorSimpleInterpolator::create(0xFF802080, 0xFF000000));
-    colorInterpolator = SPK::ColorSimpleInterpolator::create(0xFF802080, 0xFF000000);
-    trailGroup->setColorInterpolator(colorInterpolator);
     trailGroup->setParamInterpolator(SPK::PARAM_TEXTURE_INDEX, SPK::FloatRandomInitializer::create(0.0f, 4.0f));
     trailGroup->setParamInterpolator(SPK::PARAM_ROTATION_SPEED, SPK::FloatRandomInitializer::create(-0.1f, 1.0f));
     trailGroup->setParamInterpolator(SPK::PARAM_ANGLE, SPK::FloatRandomInitializer::create(0.0f, 2.0f * 3.14159f));
@@ -511,6 +481,7 @@ public:
         setUseVertexBufferObjects(false);
         setDataVariance(osg::Object::DYNAMIC);
         setInitialBound(osg::BoundingBox(-10, -10, -10, 10, 10, 10));
+        gSparkParticlesDrawable = this;
     }
 
     SparkParticlesDrawable(const SparkParticlesDrawable& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
@@ -522,6 +493,11 @@ public:
     {}
 
     META_Object(example_SparkEditor, SparkParticlesDrawable);
+
+    void drawEditorUi()
+    {
+        _editorCore.drawImGui(_system);
+    }
 
     void drawImplementation(osg::RenderInfo& renderInfo) const override
     {
@@ -556,17 +532,20 @@ public:
                 renderer->setTexture(_textureId);
                 renderer->setTexturingMode(SPK::TEXTURE_MODE_2D);
                 renderer->setAtlasDimensions(2, 2);
-                
-                colorInterpolator = SPK::ColorSimpleInterpolator::create(0xFF802080, 0xFF000000);
-                
+
+                _editorCore.setSourceFilePath("spark_editor.spk");
                 _system = SPK::IO::Manager::get().load("spark_editor.spk");
-                
-                _system->getGroup(1)->setColorInterpolator(colorInterpolator);
-                _system->getGroup(1)->setRenderer(renderer);
-                if(_system)
+                if (_system)
+                {
+                    if (_system->getNbGroups() > 1)
+                    {
+                        _system->getGroup(1)->setRenderer(renderer);
+                    }
+                    _editorCore.extractFromSystem(*_system);
                     std::cout<<"System loaded from spark_editor.spk"<<std::endl;
+                }
                 else
-                    std::cout<<"Failed to load system"<<std::endl;                                      
+                    std::cout<<"Failed to load system"<<std::endl;
             }          
         }
 
@@ -597,6 +576,7 @@ private:
     mutable GLuint _textureId;
     mutable SPK::Ref<SPK::System> _system;
     mutable double _lastSimulationTime;
+    mutable spark_editor::SparkEditorCore _editorCore;
 };
 
 osg::ref_ptr<osg::MatrixTransform> createSparkNode()
@@ -606,7 +586,6 @@ osg::ref_ptr<osg::MatrixTransform> createSparkNode()
     osg::ref_ptr<osg::Geode> geode = new osg::Geode();
     geode->setCullingActive(false);
     geode->addDrawable(new SparkParticlesDrawable());
-    geode->addUpdateCallback(new ParticleCallback());
 
     osg::StateSet* ss = geode->getOrCreateStateSet();
     ss->setAttributeAndModes(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE), osg::StateAttribute::ON);
@@ -618,6 +597,14 @@ osg::ref_ptr<osg::MatrixTransform> createSparkNode()
     rootMat->setMatrix(osg::Matrix::translate(0.0f, 0.0f, 0.0f));
     rootMat->addChild(geode.get());
     return rootMat;
+}
+
+void DrawSparkEditorPanel()
+{
+    if (gSparkParticlesDrawable)
+        gSparkParticlesDrawable->drawEditorUi();
+    else
+        ImGui::TextUnformatted("Spark drawable is not initialized yet.");
 }
 
 } // namespace
