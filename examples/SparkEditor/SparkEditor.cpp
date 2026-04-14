@@ -20,8 +20,10 @@
 #include <osg/TexGen>
 #include <osg/Texture2D>
 #include <osg/Drawable>
+#include <osg/Image>
 
 #include <osgDB/ReadFile>
+#include <osgDB/FileUtils>
 
 #include <osgViewer/Viewer>
 #include <osg/Matrix>
@@ -36,12 +38,13 @@
 #include <imgui_impl_opengl3.h>
 #include "OsgImGuiHandler.hpp"
 #include "EditorCore/SparkEditorCore.h"
+#include "EditorCore/DemoSystemFactory.h"
 
 #include <SPARK.h>
 #include <SPARK_GL.h>
-#include <algorithm>
 #include <sstream>
 #include <string>
+#include <vector>
 
 
 template<typename T>
@@ -384,16 +387,24 @@ namespace {
 class SparkParticlesDrawable;
 static SparkParticlesDrawable* gSparkParticlesDrawable = nullptr;
 void DrawSparkEditorPanel();
+static int gSelectedDemoIndex = 0;
+static bool gReloadDemoRequested = false;
 
-GLuint createSparkAtlasTexture()
+GLuint createTextureFromSparkRes(const std::string& fileName)
 {
-    // 2x2 atlas texture used by GLQuadRenderer::setAtlasDimensions(2, 2).
-    const GLubyte pixels[] = {
-        255, 176, 96, 64,
-        176, 128, 80, 48,
-        96,  80,  48, 32,
-        64,  48,  32, 16
-    };
+    const std::string dataPath = osgDB::findDataFile("SparkRes/" + fileName);
+    if (dataPath.empty())
+    {
+        std::cout << "Failed to locate SparkRes/" << fileName << " via OSG_FILE_PATH\n";
+        return 0;
+    }
+
+    osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile(dataPath);
+    if (!image.valid() || !image->data())
+    {
+        std::cout << "Failed to load texture image: " << dataPath << '\n';
+        return 0;
+    }
 
     GLuint textureId = 0;
     glGenTextures(1, &textureId);
@@ -402,80 +413,40 @@ GLuint createSparkAtlasTexture()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexImage2D(
-        GL_TEXTURE_2D,
+    glTexImage2D(GL_TEXTURE_2D,
         0,
-        GL_LUMINANCE,
-        4,
-        4,
+        image->getPixelFormat(),
+        image->s(),
+        image->t(),
         0,
-        GL_LUMINANCE,
-        GL_UNSIGNED_BYTE,
-        pixels);
+        image->getPixelFormat(),
+        image->getDataType(),
+        image->data());
     glBindTexture(GL_TEXTURE_2D, 0);
+
     return textureId;
 }
 
-SPK::Ref<SPK::System> createSparkSystem(GLuint textureId)
+spark_editor::DemoTextureSet loadDemoTextures()
 {
-    SPK::Ref<SPK::System> system = SPK::System::create(true);
-    system->setName("SparkEditor_System");
-
-    SPK::Ref<SPK::GL::GLQuadRenderer> renderer = SPK::GL::GLQuadRenderer::create();
-    renderer->setBlendMode(SPK::BLEND_MODE_ADD);
-    renderer->enableRenderingOption(SPK::RENDERING_OPTION_DEPTH_WRITE, false);
-    renderer->setTexture(textureId);
-    renderer->setTexturingMode(SPK::TEXTURE_MODE_2D);
-    renderer->setAtlasDimensions(2, 2);
-
-    SPK::Ref<SPK::SphericEmitter> emitter = SPK::SphericEmitter::create(
-        SPK::Vector3D(0.0f, 0.0f, -1.0f),
-        0.0f,
-        3.14159f / 4.0f,
-        SPK::Point::create(),
-        true,
-        -1,
-        100.0f,
-        0.2f,
-        0.5f);
-
-    SPK::Ref<SPK::Group> phantomGroup = system->createGroup(40);
-    SPK::Ref<SPK::Group> trailGroup = system->createGroup(1000);
-    SPK::Ref<SPK::Plane> ground = SPK::Plane::create(SPK::Vector3D(0.0f, -1.0f, 0.0f));
-
-    phantomGroup->setLifeTime(5.0f, 5.0f);
-    phantomGroup->setRadius(0.06f);
-    phantomGroup->addEmitter(SPK::SphericEmitter::create(
-        SPK::Vector3D(0.0f, 1.0f, 0.0f),
-        0.0f,
-        3.14159f / 4.0f,
-        SPK::Point::create(SPK::Vector3D(0.0f, -1.0f, 0.0f)),
-        true,
-        -1,
-        2.0f,
-        1.2f,
-        2.0f));
-    phantomGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -1.0f, 0.0f)));
-    phantomGroup->addModifier(SPK::Obstacle::create(ground, 0.8f));
-    phantomGroup->addModifier(SPK::EmitterAttacher::create(trailGroup, emitter, true));
-
-    trailGroup->setLifeTime(0.5f, 1.0f);
-    trailGroup->setRadius(0.06f);
-    trailGroup->setRenderer(renderer);
-    trailGroup->setParamInterpolator(SPK::PARAM_TEXTURE_INDEX, SPK::FloatRandomInitializer::create(0.0f, 4.0f));
-    trailGroup->setParamInterpolator(SPK::PARAM_ROTATION_SPEED, SPK::FloatRandomInitializer::create(-0.1f, 1.0f));
-    trailGroup->setParamInterpolator(SPK::PARAM_ANGLE, SPK::FloatRandomInitializer::create(0.0f, 2.0f * 3.14159f));
-    trailGroup->addModifier(SPK::Rotator::create());
-    trailGroup->addModifier(SPK::Destroyer::create(ground));
-
-    return system;
+    spark_editor::DemoTextureSet textures;
+    textures.explosion = createTextureFromSparkRes("explosion.bmp");
+    textures.flash = createTextureFromSparkRes("flash.bmp");
+    textures.spark1 = createTextureFromSparkRes("spark1.bmp");
+    textures.spark2 = createTextureFromSparkRes("point.bmp");
+    textures.wave = createTextureFromSparkRes("wave.bmp");
+    textures.flare = createTextureFromSparkRes("flare.bmp");
+    textures.point = createTextureFromSparkRes("point.bmp");
+    textures.ball = createTextureFromSparkRes("ball.bmp");
+    textures.waterdrops = createTextureFromSparkRes("waterdrops.bmp");
+    return textures;
 }
 
 class SparkParticlesDrawable : public osg::Drawable
 {
 public:
     SparkParticlesDrawable()
-        : _initialized(false), _textureId(0), _lastSimulationTime(-1.0)
+        : _initialized(false), _lastSimulationTime(-1.0)
     {
         setSupportsDisplayList(false);
         setUseVertexBufferObjects(false);
@@ -487,7 +458,7 @@ public:
     SparkParticlesDrawable(const SparkParticlesDrawable& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
         : osg::Drawable(copy, copyop),
           _initialized(copy._initialized),
-          _textureId(copy._textureId),
+          _textures(copy._textures),
           _system(copy._system),
           _lastSimulationTime(copy._lastSimulationTime)
     {}
@@ -496,6 +467,24 @@ public:
 
     void drawEditorUi()
     {
+        const std::vector<std::string>& demoNames = spark_editor::GetDemoSystemNames();
+        if (demoNames.empty())
+        {
+            ImGui::TextUnformatted("No demo presets registered.");
+        }
+        else
+        {
+            if (gSelectedDemoIndex < 0 || gSelectedDemoIndex >= static_cast<int>(demoNames.size()))
+                gSelectedDemoIndex = 0;
+            std::vector<const char*> items;
+            items.reserve(demoNames.size());
+            for (size_t i = 0; i < demoNames.size(); ++i)
+                items.push_back(demoNames[i].c_str());
+            ImGui::Combo("Demo Preset", &gSelectedDemoIndex, items.data(), static_cast<int>(items.size()));
+            if (ImGui::Button("Load Selected Demo"))
+                gReloadDemoRequested = true;
+        }
+        ImGui::Separator();
         _editorCore.drawImGui(_system);
     }
 
@@ -507,12 +496,9 @@ public:
 
             SPK::System::setClampStep(true, 0.1f);
             SPK::System::useAdaptiveStep(0.001f, 0.01f);
-            _textureId = createSparkAtlasTexture();
+            _textures = loadDemoTextures();
             
-            // program create
-            // {
-                // _system = createSparkSystem(_textureId);
-            // }
+            _system = spark_editor::CreateDemoSystem(static_cast<size_t>(gSelectedDemoIndex), _textures);
 
             // // save
             // {
@@ -524,33 +510,24 @@ public:
             // }
                 
 
-            // // load  
+            _editorCore.setSourceFilePath("spark_editor.spk");
+            if (_system)
             {
-                SPK::Ref<SPK::GL::GLQuadRenderer> renderer = SPK::GL::GLQuadRenderer::create();
-                renderer->setBlendMode(SPK::BLEND_MODE_ADD);
-                renderer->enableRenderingOption(SPK::RENDERING_OPTION_DEPTH_WRITE, false);
-                renderer->setTexture(_textureId);
-                renderer->setTexturingMode(SPK::TEXTURE_MODE_2D);
-                renderer->setAtlasDimensions(2, 2);
-
-                _editorCore.setSourceFilePath("spark_editor.spk");
-                _system = SPK::IO::Manager::get().load("spark_editor.spk");
-                if (_system)
-                {
-                    if (_system->getNbGroups() > 1)
-                    {
-                        _system->getGroup(1)->setRenderer(renderer);
-                    }
-                    _editorCore.extractFromSystem(*_system);
-                    std::cout<<"System loaded from spark_editor.spk"<<std::endl;
-                }
-                else
-                    std::cout<<"Failed to load system"<<std::endl;
-            }          
+                _editorCore.extractFromSystem(*_system);
+                std::cout << "Demo system loaded: " << spark_editor::GetDemoSystemNames()[gSelectedDemoIndex] << std::endl;
+            }
         }
 
         if (!_system)
             return;
+
+        if (gReloadDemoRequested)
+        {
+            gReloadDemoRequested = false;
+            _system = spark_editor::CreateDemoSystem(static_cast<size_t>(gSelectedDemoIndex), _textures);
+            if (_system)
+                _editorCore.extractFromSystem(*_system);
+        }
 
         const osg::FrameStamp* frameStamp = renderInfo.getState()->getFrameStamp();
         if (frameStamp)
@@ -573,7 +550,7 @@ public:
 
 private:
     mutable bool _initialized;
-    mutable GLuint _textureId;
+    mutable spark_editor::DemoTextureSet _textures;
     mutable SPK::Ref<SPK::System> _system;
     mutable double _lastSimulationTime;
     mutable spark_editor::SparkEditorCore _editorCore;

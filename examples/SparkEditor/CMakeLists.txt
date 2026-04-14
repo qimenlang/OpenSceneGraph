@@ -2,6 +2,8 @@
 SET(TARGET_SRC SparkEditor.cpp
     OsgImGuiHandler.hpp
     OsgImGuiHandler.cpp
+    EditorCore/DemoSystemFactory.h
+    EditorCore/DemoSystemFactory.cpp
     EditorCore/SparkEditorCore.h
     EditorCore/SparkEditorCore.cpp)
 
