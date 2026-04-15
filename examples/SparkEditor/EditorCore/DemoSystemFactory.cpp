@@ -296,39 +296,50 @@ SPK::Ref<SPK::System> createSPKDX9Rain(const DemoTextureSet& textures)
     return system;
 }
 
+using CreateDemoFn = SPK::Ref<SPK::System> (*)(const DemoTextureSet&);
+
+struct RegisteredDemo
+{
+    const char* name;
+    CreateDemoFn create;
+};
+
+// Single list: comment out one line to remove that demo from the UI and from creation (no index drift).
+const RegisteredDemo kRegisteredDemos[] = {
+    {"SPKTest", createSPKTest},
+    {"SPKCollision", createSPKCollision},
+    //{"SPKFlakes", createSPKFlakes},
+    {"SPKExplosion", createSPKExplosion},
+    {"SPKTestIrrlicht", createSPKIrrlichtTest},
+    {"SPKTestIrrlicht_Controllers", createSPKIrrlichtTest}, // same base; controllers omitted in editor
+    {"DX9.BasicDemo", createSPKDX9Basic},
+    {"DX9.GravitationDemo", createSPKDX9Gravitation},
+    {"DX9.RainDemo", createSPKDX9Rain},
+};
+
 } // namespace
 
 const std::vector<std::string>& GetDemoSystemNames()
 {
-    static const std::vector<std::string> kNames = {
-        "SPKTest",
-        "SPKCollision",
-        "SPKFlakes",
-        "SPKExplosion",
-        "SPKTestIrrlicht",
-        "SPKTestIrrlicht_Controllers",
-        "DX9.BasicDemo",
-        "DX9.GravitationDemo",
-        "DX9.RainDemo"
-    };
-    return kNames;
+    static std::vector<std::string> names;
+    static bool init = false;
+    if (!init)
+    {
+        for (const auto& d : kRegisteredDemos)
+            names.emplace_back(d.name);
+        init = true;
+    }
+    return names;
 }
 
-SPK::Ref<SPK::System> CreateDemoSystem(size_t index, const DemoTextureSet& textures)
+SPK::Ref<SPK::System> CreateDemoSystem(const std::string& demoName, const DemoTextureSet& textures)
 {
-    switch (index)
+    for (const auto& d : kRegisteredDemos)
     {
-    case 0: return createSPKTest(textures);
-    case 1: return createSPKCollision(textures);
-    case 2: return createSPKFlakes(textures);
-    case 3: return createSPKExplosion(textures);
-    case 4: return createSPKIrrlichtTest(textures);
-    case 5: return createSPKIrrlichtTest(textures); // same base, controller behavior omitted for editor runtime
-    case 6: return createSPKDX9Basic(textures);
-    case 7: return createSPKDX9Gravitation(textures);
-    case 8: return createSPKDX9Rain(textures);
-    default: return createSPKTest(textures);
+        if (demoName == d.name)
+            return d.create(textures);
     }
+    return createSPKTest(textures);
 }
 
 } // namespace spark_editor

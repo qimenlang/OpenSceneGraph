@@ -497,8 +497,13 @@ public:
             SPK::System::setClampStep(true, 0.1f);
             SPK::System::useAdaptiveStep(0.001f, 0.01f);
             _textures = loadDemoTextures();
-            
-            _system = spark_editor::CreateDemoSystem(static_cast<size_t>(gSelectedDemoIndex), _textures);
+
+            const std::vector<std::string>& demoNameList = spark_editor::GetDemoSystemNames();
+            int nameIdx = gSelectedDemoIndex;
+            if (demoNameList.empty() || nameIdx < 0 || static_cast<size_t>(nameIdx) >= demoNameList.size())
+                nameIdx = 0;
+            const std::string demoName = demoNameList.empty() ? std::string() : demoNameList[static_cast<size_t>(nameIdx)];
+            _system = spark_editor::CreateDemoSystem(demoName, _textures);
 
             // // save
             // {
@@ -514,7 +519,7 @@ public:
             if (_system)
             {
                 _editorCore.extractFromSystem(*_system);
-                std::cout << "Demo system loaded: " << spark_editor::GetDemoSystemNames()[gSelectedDemoIndex] << std::endl;
+                std::cout << "Demo system loaded: " << demoName << std::endl;
             }
         }
 
@@ -524,7 +529,12 @@ public:
         if (gReloadDemoRequested)
         {
             gReloadDemoRequested = false;
-            _system = spark_editor::CreateDemoSystem(static_cast<size_t>(gSelectedDemoIndex), _textures);
+            const std::vector<std::string>& demoNameList = spark_editor::GetDemoSystemNames();
+            int nameIdx = gSelectedDemoIndex;
+            if (demoNameList.empty() || nameIdx < 0 || static_cast<size_t>(nameIdx) >= demoNameList.size())
+                nameIdx = 0;
+            const std::string demoName = demoNameList.empty() ? std::string() : demoNameList[static_cast<size_t>(nameIdx)];
+            _system = spark_editor::CreateDemoSystem(demoName, _textures);
             if (_system)
                 _editorCore.extractFromSystem(*_system);
         }

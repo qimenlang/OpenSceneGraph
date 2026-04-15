@@ -22,6 +22,7 @@ struct DemoTextureSet
 };
 
 const std::vector<std::string>& GetDemoSystemNames();
-SPK::Ref<SPK::System> CreateDemoSystem(size_t index, const DemoTextureSet& textures);
+/** Creates the demo matching @a demoName (must match an entry in GetDemoSystemNames()). */
+SPK::Ref<SPK::System> CreateDemoSystem(const std::string& demoName, const DemoTextureSet& textures);
 
 } // namespace spark_editor
