@@ -62,6 +62,14 @@ struct InterpolatorNode
     std::vector<Property> properties;
 };
 
+struct RendererNode
+{
+    int groupIndex = -1;
+    std::string typeName;
+    std::string title;
+    std::vector<Property> properties;
+};
+
 struct SystemEditableData
 {
     std::string sourceFilePath;
@@ -69,6 +77,7 @@ struct SystemEditableData
     std::vector<EmitterNode> emitters;
     std::vector<ModifierNode> modifiers;
     std::vector<InterpolatorNode> interpolators;
+    std::vector<RendererNode> renderers;
 };
 
 class SparkEditorCore

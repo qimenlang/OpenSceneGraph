@@ -5,7 +5,9 @@ SET(TARGET_SRC SparkEditor.cpp
     EditorCore/DemoSystemFactory.h
     EditorCore/DemoSystemFactory.cpp
     EditorCore/SparkEditorCore.h
-    EditorCore/SparkEditorCore.cpp)
+    EditorCore/SparkEditorCore.cpp
+    EditorCore/SparkEditorFileDialogs.h
+    EditorCore/SparkEditorFileDialogs.cpp)
 
 #### end var setup  ###
 SETUP_EXAMPLE(SparkEditor)
@@ -18,6 +20,9 @@ if(NOT SPARK_STATIC_BUILD)
     target_compile_definitions(example_SparkEditor PRIVATE SPK_IMPORT)
 endif()
 target_link_libraries(example_SparkEditor imgui SPARK_Core SPARK_OpenGL)
+if(WIN32)
+    target_link_libraries(example_SparkEditor comdlg32)
+endif()
 
 if(MSVC)
     add_custom_command(TARGET example_SparkEditor POST_BUILD

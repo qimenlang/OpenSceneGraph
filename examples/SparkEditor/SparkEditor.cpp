@@ -39,6 +39,7 @@
 #include "OsgImGuiHandler.hpp"
 #include "EditorCore/SparkEditorCore.h"
 #include "EditorCore/DemoSystemFactory.h"
+#include "EditorCore/SparkEditorFileDialogs.h"
 
 #include <SPARK.h>
 #include <SPARK_GL.h>
@@ -52,6 +53,24 @@ std::string Vec3ToString(const T& vec) {
     std::stringstream ss;
     ss << "{" << vec.x() << "," << vec.y() << "," << vec.z() << "}";
     return ss.str();
+}
+
+namespace
+{
+    inline void EnsureSparkRendererTypesRegistered()
+    {
+        static bool sRegistered = false;
+        if (sRegistered)
+            return;
+
+        SPK::Factory& factory = SPK::Factory::getInstance();
+        factory.registerType<SPK::GL::GLPointRenderer>();
+        factory.registerType<SPK::GL::GLLineRenderer>();
+        factory.registerType<SPK::GL::GLLineTrailRenderer>();
+        factory.registerType<SPK::GL::GLQuadRenderer>();
+        sRegistered = true;
+
+    }
 }
 
 struct VortexPara {
@@ -389,6 +408,9 @@ static SparkParticlesDrawable* gSparkParticlesDrawable = nullptr;
 void DrawSparkEditorPanel();
 static int gSelectedDemoIndex = 0;
 static bool gReloadDemoRequested = false;
+#ifndef _WIN32
+static char gParticleLoadPathBuf[1024] = "";
+#endif
 
 GLuint createTextureFromSparkRes(const std::string& fileName)
 {
@@ -485,11 +507,86 @@ public:
                 gReloadDemoRequested = true;
         }
         ImGui::Separator();
+        if (_system)
+        {
+            ImGui::Text("System name: %s", _system->getName().c_str());
+            if (ImGui::Button("Save as .spk"))
+            {
+                std::string path;
+                if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), false, path))
+                {
+                    if (SPK::IO::Manager::get().save(path, _system))
+                    {
+                        _editorCore.setSourceFilePath(path);
+                        std::cout << "Saved particle system: " << path << std::endl;
+                    }
+                    else
+                        std::cout << "Save failed: " << path << std::endl;
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Save as .xml"))
+            {
+                std::string path;
+                if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), true, path))
+                {
+                    if (SPK::IO::Manager::get().save(path, _system))
+                    {
+                        _editorCore.setSourceFilePath(path);
+                        std::cout << "Saved particle system: " << path << std::endl;
+                    }
+                    else
+                        std::cout << "Save failed: " << path << std::endl;
+                }
+            }
+            if (ImGui::Button("Load .spk / .xml..."))
+            {
+                std::string path;
+                if (spark_editor::ShowOpenParticleFileDialog(path))
+                {
+                    SPK::Ref<SPK::System> loaded = SPK::IO::Manager::get().load(path);
+                    if (loaded)
+                    {
+                        _system = loaded;
+                        _editorCore.setSourceFilePath(path);
+                        _editorCore.extractFromSystem(*_system);
+                        std::cout << "Loaded particle system: " << path << std::endl;
+                    }
+                    else
+                        std::cout << "Load failed: " << path << std::endl;
+                }
+            }
+#ifndef _WIN32
+            ImGui::Separator();
+            ImGui::TextUnformatted("File path (non-Windows fallback):");
+            ImGui::InputText("##particleLoadPath", gParticleLoadPathBuf, sizeof(gParticleLoadPathBuf));
+            if (ImGui::Button("Load from path"))
+            {
+                std::string path(gParticleLoadPathBuf);
+                if (!path.empty())
+                {
+                    SPK::Ref<SPK::System> loaded = SPK::IO::Manager::get().load(path);
+                    if (loaded)
+                    {
+                        _system = loaded;
+                        _editorCore.setSourceFilePath(path);
+                        _editorCore.extractFromSystem(*_system);
+                        std::cout << "Loaded particle system: " << path << std::endl;
+                    }
+                    else
+                        std::cout << "Load failed: " << path << std::endl;
+                }
+            }
+#endif
+        }
+        ImGui::Separator();
         _editorCore.drawImGui(_system);
     }
 
     void drawImplementation(osg::RenderInfo& renderInfo) const override
     {
+        EnsureSparkRendererTypesRegistered();
+
         if (!_initialized)
         {
             _initialized = true;
@@ -535,6 +632,7 @@ public:
                 nameIdx = 0;
             const std::string demoName = demoNameList.empty() ? std::string() : demoNameList[static_cast<size_t>(nameIdx)];
             _system = spark_editor::CreateDemoSystem(demoName, _textures);
+            _editorCore.setSourceFilePath("");
             if (_system)
                 _editorCore.extractFromSystem(*_system);
         }

@@ -247,6 +247,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
     data_.emitters.clear();
     data_.modifiers.clear();
     data_.interpolators.clear();
+    data_.renderers.clear();
 
     static const std::array<std::pair<SPK::Param, const char*>, 5> kParams = {{
         {SPK::PARAM_SCALE, "scale"},
@@ -266,6 +267,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
         GroupNode groupNode;
         groupNode.groupIndex = static_cast<int>(gi);
         groupNode.title = "Group " + std::to_string(gi);
+        groupNode.properties.push_back(makeInt("capacity", "Capacity", static_cast<int>(group->getCapacity()), 1.0f, 1, 1000000));
         groupNode.properties.push_back(makeFloat("lifeMin", "Life Min", group->getMinLifeTime(), 0.01f, 0.0f, 120.0f));
         groupNode.properties.push_back(makeFloat("lifeMax", "Life Max", group->getMaxLifeTime(), 0.01f, 0.0f, 120.0f));
         groupNode.properties.push_back(makeBool("immortal", "Immortal", group->isImmortal()));
@@ -273,6 +275,20 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
         groupNode.properties.push_back(makeFloat("radiusGraphical", "Graphical Radius", group->getGraphicalRadius(), 0.01f, 0.0f, 100.0f));
         groupNode.properties.push_back(makeFloat("radiusPhysical", "Physical Radius", group->getPhysicalRadius(), 0.01f, 0.0f, 100.0f));
         data_.groups.push_back(groupNode);
+
+        SPK::Ref<SPK::Renderer> rendererRef = group->getRenderer();
+        if (rendererRef)
+        {
+            SPK::Renderer* renderer = rendererRef.get();
+            RendererNode r;
+            r.groupIndex = static_cast<int>(gi);
+            r.typeName = "Renderer";
+            r.title = r.typeName + std::string(" G") + std::to_string(gi);
+            r.properties.push_back(makeBool("active", "Active", renderer->isActive()));
+            r.properties.push_back(makeInt("renderingOptions", "Rendering Options", static_cast<int>(renderer->getRenderingOptions()), 1.0f, 0, 65535));
+
+            data_.renderers.push_back(r);
+        }
 
         for (size_t ei = 0; ei < group->getNbEmitters(); ++ei)
         {
@@ -429,6 +445,11 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         const float lifeMax = readFloat(g.properties, "lifeMax", group->getMaxLifeTime());
         const float minLife = lifeMin < lifeMax ? lifeMin : lifeMax;
         const float maxLife = lifeMin < lifeMax ? lifeMax : lifeMin;
+        int capacity = readInt(g.properties, "capacity", static_cast<int>(group->getCapacity()));
+        if (capacity < 1)
+            capacity = 1;
+        if (static_cast<size_t>(capacity) != group->getCapacity())
+            group->reallocate(static_cast<size_t>(capacity));
         group->setLifeTime(minLife, maxLife);
         group->setImmortal(readBool(g.properties, "immortal", group->isImmortal()));
         group->setStill(readBool(g.properties, "still", group->isStill()));
@@ -578,6 +599,26 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
                 readFloat(i.properties, "death", simp->getDeathValue()));
         }
     }
+
+    for (size_t ri = 0; ri < data_.renderers.size(); ++ri)
+    {
+        const RendererNode& r = data_.renderers[ri];
+        if (r.groupIndex < 0 || static_cast<size_t>(r.groupIndex) >= system.getNbGroups())
+            continue;
+        SPK::Ref<SPK::Group> groupRef = system.getGroup(static_cast<size_t>(r.groupIndex));
+        if (!groupRef)
+            continue;
+        SPK::Ref<SPK::Renderer> rendererRef = groupRef->getRenderer();
+        if (!rendererRef)
+            continue;
+        SPK::Renderer* renderer = rendererRef.get();
+
+        renderer->setActive(readBool(r.properties, "active", renderer->isActive()));
+        int renderingOptions = readInt(r.properties, "renderingOptions", static_cast<int>(renderer->getRenderingOptions()));
+        if (renderingOptions < 0)
+            renderingOptions = 0;
+        renderer->setRenderingOptions(static_cast<unsigned int>(renderingOptions));
+    }
 }
 
 void SparkEditorCore::rebuildFromData(SPK::Ref<SPK::System>& system) const
@@ -657,6 +698,21 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                 ImGui::TextUnformatted("No exposed editable properties for this interpolator type yet.");
             for (size_t p = 0; p < interp.properties.size(); ++p)
                 changed = drawProperty(interp.properties[p], interp.title) || changed;
+            ImGui::TreePop();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Renderers", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        for (size_t i = 0; i < data_.renderers.size(); ++i)
+        {
+            RendererNode& renderer = data_.renderers[i];
+            if (!ImGui::TreeNode((renderer.title + "##renderer").c_str()))
+                continue;
+            if (renderer.properties.empty())
+                ImGui::TextUnformatted("No exposed editable properties for this renderer type yet.");
+            for (size_t p = 0; p < renderer.properties.size(); ++p)
+                changed = drawProperty(renderer.properties[p], renderer.title) || changed;
             ImGui::TreePop();
         }
     }

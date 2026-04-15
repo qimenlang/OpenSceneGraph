@@ -89,7 +89,7 @@ SPK::Ref<SPK::System> createSPKFlakes(const DemoTextureSet& textures)
     }
 
     SPK::Ref<SPK::Sphere> sphere = SPK::Sphere::create(SPK::Vector3D(), 1.0f);
-    SPK::Ref<SPK::Group> group = system->createGroup(500000);
+    SPK::Ref<SPK::Group> group = system->createGroup(50000);
     group->setRadius(0.0f);
     group->setRenderer(renderer);
     group->setColorInterpolator(SPK::ColorDefaultInitializer::create(0xFFCC4C66));
@@ -97,7 +97,7 @@ SPK::Ref<SPK::System> createSPKFlakes(const DemoTextureSet& textures)
     group->addModifier(SPK::Friction::create(0.2f));
     group->addModifier(SPK::Obstacle::create(sphere, 0.9f, 0.9f));
     group->setImmortal(true);
-    group->addParticles(50000, sphere, SPK::Vector3D());
+    group->addParticles(5000, sphere, SPK::Vector3D());
     group->flushBufferedParticles();
     return system;
 }
@@ -308,7 +308,7 @@ struct RegisteredDemo
 const RegisteredDemo kRegisteredDemos[] = {
     {"SPKTest", createSPKTest},
     {"SPKCollision", createSPKCollision},
-    //{"SPKFlakes", createSPKFlakes},
+    {"SPKFlakes", createSPKFlakes},
     {"SPKExplosion", createSPKExplosion},
     {"SPKTestIrrlicht", createSPKIrrlichtTest},
     {"SPKTestIrrlicht_Controllers", createSPKIrrlichtTest}, // same base; controllers omitted in editor
@@ -337,9 +337,17 @@ SPK::Ref<SPK::System> CreateDemoSystem(const std::string& demoName, const DemoTe
     for (const auto& d : kRegisteredDemos)
     {
         if (demoName == d.name)
-            return d.create(textures);
+        {
+            SPK::Ref<SPK::System> sys = d.create(textures);
+            if (sys)
+                sys->setName(d.name);
+            return sys;
+        }
     }
-    return createSPKTest(textures);
+    SPK::Ref<SPK::System> sys = createSPKTest(textures);
+    if (sys)
+        sys->setName(demoName.empty() ? std::string("SPKTest") : demoName);
+    return sys;
 }
 
 } // namespace spark_editor
