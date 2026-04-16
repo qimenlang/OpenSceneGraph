@@ -447,7 +447,10 @@ static bool gReloadDemoRequested = false;
 static char gParticleLoadPathBuf[1024] = "";
 #endif
 
-GLuint createTextureFromSparkRes(const std::string& fileName)
+GLuint createTextureFromSparkRes(
+    const std::string& fileName,
+    osg::State& state,
+    std::vector<osg::ref_ptr<osg::Texture2D> >& textureOwners)
 {
     const std::string dataPath = osgDB::findDataFile("SparkRes/" + fileName);
     if (dataPath.empty())
@@ -463,23 +466,22 @@ GLuint createTextureFromSparkRes(const std::string& fileName)
         return 0;
     }
 
-    GLuint textureId = 0;
-    glGenTextures(1, &textureId);
-    glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D,
-        0,
-        image->getPixelFormat(),
-        image->s(),
-        image->t(),
-        0,
-        image->getPixelFormat(),
-        image->getDataType(),
-        image->data());
-    glBindTexture(GL_TEXTURE_2D, 0);
+    osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
+    texture->setDataVariance(osg::Object::DYNAMIC);
+    texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP);
+    texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP);
+    texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+    texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    texture->setImage(image.get());
+    texture->apply(state);
+
+    GLuint textureId = 0u;
+    osg::Texture::TextureObject* textureObject = texture->getTextureObject(state.getContextID());
+    if (textureObject)
+        textureId = textureObject->id();
+
+    if (texture.valid())
+        textureOwners.push_back(texture);
 
     if (textureId != 0u)
         spark_editor::RegisterDemoTextureFile(textureId, fileName);
@@ -487,18 +489,18 @@ GLuint createTextureFromSparkRes(const std::string& fileName)
     return textureId;
 }
 
-spark_editor::DemoTextureSet loadDemoTextures()
+spark_editor::DemoTextureSet loadDemoTextures(osg::State& state, std::vector<osg::ref_ptr<osg::Texture2D> >& textureOwners)
 {
     spark_editor::DemoTextureSet textures;
-    textures.explosion = createTextureFromSparkRes("explosion.bmp");
-    textures.flash = createTextureFromSparkRes("flash.bmp");
-    textures.spark1 = createTextureFromSparkRes("spark1.bmp");
-    textures.spark2 = createTextureFromSparkRes("point.bmp");
-    textures.wave = createTextureFromSparkRes("wave.bmp");
-    textures.flare = createTextureFromSparkRes("flare.bmp");
-    textures.point = createTextureFromSparkRes("point.bmp");
-    textures.ball = createTextureFromSparkRes("ball.bmp");
-    textures.waterdrops = createTextureFromSparkRes("waterdrops.bmp");
+    textures.explosion = createTextureFromSparkRes("explosion.bmp", state, textureOwners);
+    textures.flash = createTextureFromSparkRes("flash.bmp", state, textureOwners);
+    textures.spark1 = createTextureFromSparkRes("spark1.bmp", state, textureOwners);
+    textures.spark2 = createTextureFromSparkRes("point.bmp", state, textureOwners);
+    textures.wave = createTextureFromSparkRes("wave.bmp", state, textureOwners);
+    textures.flare = createTextureFromSparkRes("flare.bmp", state, textureOwners);
+    textures.point = createTextureFromSparkRes("point.bmp", state, textureOwners);
+    textures.ball = createTextureFromSparkRes("ball.bmp", state, textureOwners);
+    textures.waterdrops = createTextureFromSparkRes("waterdrops.bmp", state, textureOwners);
     return textures;
 }
 
@@ -520,7 +522,8 @@ public:
           _initialized(copy._initialized),
           _textures(copy._textures),
           _system(copy._system),
-          _lastSimulationTime(copy._lastSimulationTime)
+          _lastSimulationTime(copy._lastSimulationTime),
+          _textureOwners(copy._textureOwners)
     {}
 
     META_Object(example_SparkEditor, SparkParticlesDrawable);
@@ -635,7 +638,7 @@ public:
 
             SPK::System::setClampStep(true, 0.1f);
             SPK::System::useAdaptiveStep(0.001f, 0.01f);
-            _textures = loadDemoTextures();
+            _textures = loadDemoTextures(*renderInfo.getState(), _textureOwners);
 
             const std::vector<std::string>& demoNameList = spark_editor::GetDemoSystemNames();
             int nameIdx = gSelectedDemoIndex;
@@ -694,6 +697,7 @@ private:
     mutable SPK::Ref<SPK::System> _system;
     mutable double _lastSimulationTime;
     mutable spark_editor::SparkEditorCore _editorCore;
+    mutable std::vector<osg::ref_ptr<osg::Texture2D> > _textureOwners;
 };
 
 osg::ref_ptr<osg::MatrixTransform> createSparkNode()
