@@ -26,6 +26,7 @@
 #include <osgDB/FileUtils>
 
 #include <osgViewer/Viewer>
+#include <osg/FrameStamp>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Quat>
@@ -40,12 +41,14 @@
 #include "EditorCore/SparkEditorCore.h"
 #include "EditorCore/DemoSystemFactory.h"
 #include "EditorCore/SparkEditorFileDialogs.h"
+#include "EditorCore/SparkEditorParticleIO.h"
 
 #include <SPARK.h>
 #include <SPARK_GL.h>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <deque>
 
 
 template<typename T>
@@ -368,6 +371,38 @@ protected:
     {
         ImGui::Begin("Rotor Wash");
 
+        {
+            float osgInstantFps = 0.f;
+            float osgAvgFpsPast1s = 0.f;
+            if (_viewer)
+            {
+                osg::FrameStamp* fs = _viewer->getFrameStamp();
+                if (fs)
+                {
+                    const double simNow = fs->getSimulationTime();
+
+                    static double sLastSimTime = -1.0;
+                    double simDt = 1.0 / 60.0;
+                    if (sLastSimTime >= 0.0)
+                        simDt = simNow - sLastSimTime;
+                    if (simDt < 1.0e-9)
+                        simDt = 1.0e-9;
+                    osgInstantFps = static_cast<float>(1.0 / simDt);
+                    sLastSimTime = simNow;
+
+                    static std::deque<double> sSimTimesInLastSimSecond;
+                    sSimTimesInLastSimSecond.push_back(simNow);
+                    while (!sSimTimesInLastSimSecond.empty() && simNow - sSimTimesInLastSimSecond.front() >= 1.0)
+                        sSimTimesInLastSimSecond.pop_front();
+                    osgAvgFpsPast1s = static_cast<float>(sSimTimesInLastSimSecond.size());
+                }
+            }
+
+            ImGui::Text("Real FPS (1 / delta simTime): %.1f", osgInstantFps);
+            ImGui::Text("Avg FPS (1s sim window): %.1f", osgAvgFpsPast1s);
+            ImGui::Separator();
+        }
+
         // ===== 相机信息 =====
         if (_viewer)
         {
@@ -446,6 +481,9 @@ GLuint createTextureFromSparkRes(const std::string& fileName)
         image->data());
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    if (textureId != 0u)
+        spark_editor::RegisterDemoTextureFile(textureId, fileName);
+
     return textureId;
 }
 
@@ -515,6 +553,7 @@ public:
                 std::string path;
                 if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), false, path))
                 {
+                    spark_editor::PrepareParticleSaveWithDemoTextures(_system, path);
                     if (SPK::IO::Manager::get().save(path, _system))
                     {
                         _editorCore.setSourceFilePath(path);
@@ -530,6 +569,7 @@ public:
                 std::string path;
                 if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), true, path))
                 {
+                    spark_editor::PrepareParticleSaveWithDemoTextures(_system, path);
                     if (SPK::IO::Manager::get().save(path, _system))
                     {
                         _editorCore.setSourceFilePath(path);
@@ -548,6 +588,7 @@ public:
                     if (loaded)
                     {
                         _system = loaded;
+                        spark_editor::BindLoadedParticleTextures(_system, path);
                         _editorCore.setSourceFilePath(path);
                         _editorCore.extractFromSystem(*_system);
                         std::cout << "Loaded particle system: " << path << std::endl;
@@ -569,6 +610,7 @@ public:
                     if (loaded)
                     {
                         _system = loaded;
+                        spark_editor::BindLoadedParticleTextures(_system, path);
                         _editorCore.setSourceFilePath(path);
                         _editorCore.extractFromSystem(*_system);
                         std::cout << "Loaded particle system: " << path << std::endl;
@@ -601,16 +643,6 @@ public:
                 nameIdx = 0;
             const std::string demoName = demoNameList.empty() ? std::string() : demoNameList[static_cast<size_t>(nameIdx)];
             _system = spark_editor::CreateDemoSystem(demoName, _textures);
-
-            // // save
-            // {
-                // bool saved = SPK::IO::Manager::get().save("spark_editor.spk.xml", _system);
-                // if(saved)
-                //     std::cout<<"System saved to spark_editor.spk.xml"<<std::endl;
-                // else
-                //     std::cout<<"Failed to save system"<<std::endl;  
-            // }
-                
 
             _editorCore.setSourceFilePath("spark_editor.spk");
             if (_system)

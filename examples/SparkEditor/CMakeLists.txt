@@ -7,7 +7,9 @@ SET(TARGET_SRC SparkEditor.cpp
     EditorCore/SparkEditorCore.h
     EditorCore/SparkEditorCore.cpp
     EditorCore/SparkEditorFileDialogs.h
-    EditorCore/SparkEditorFileDialogs.cpp)
+    EditorCore/SparkEditorFileDialogs.cpp
+    EditorCore/SparkEditorParticleIO.h
+    EditorCore/SparkEditorParticleIO.cpp)
 
 #### end var setup  ###
 SETUP_EXAMPLE(SparkEditor)
