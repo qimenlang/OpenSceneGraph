@@ -1,4 +1,4 @@
-/* OpenSceneGraph example, osgteapot.
+﻿/* OpenSceneGraph example, osgteapot.
 *
 *  Permission is hereby granted, free of charge, to any person obtaining a copy
 *  of this software and associated documentation files (the "Software"), to deal
@@ -447,10 +447,13 @@ static bool gReloadDemoRequested = false;
 static char gParticleLoadPathBuf[1024] = "";
 #endif
 
+/** Mirrors thirdparty/SPARK/demos/src loadTexture(..., type, clamp, mipmap): legacy GL @a internalFormat, GL_CLAMP wraps, LINEAR mag, mipmap min filter when requested. */
 GLuint createTextureFromSparkRes(
     const std::string& fileName,
     osg::State& state,
-    std::vector<osg::ref_ptr<osg::Texture2D> >& textureOwners)
+    std::vector<osg::ref_ptr<osg::Texture2D> >& textureOwners,
+    GLint internalFormat,
+    bool mipmap)
 {
     const std::string dataPath = osgDB::findDataFile("SparkRes/" + fileName);
     if (dataPath.empty())
@@ -466,12 +469,27 @@ GLuint createTextureFromSparkRes(
         return 0;
     }
 
+    std::cout<<"fileName: "<<fileName<<std::endl;
+    std::cout<<"internalFormat: "<<image->getInternalTextureFormat()<<std::endl;
+    std::cout<<"pixelFormat: "<<image->getPixelFormat()<<std::endl;
+    std::cout<<"dataType: "<<image->getDataType()<<std::endl;
+
     osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
     texture->setDataVariance(osg::Object::DYNAMIC);
     texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP);
     texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP);
     texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
-    texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    if (mipmap)
+    {
+        texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
+        texture->setUseHardwareMipMapGeneration(true);
+    }
+    else
+    {
+        texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+    }
+    texture->setInternalFormatMode(osg::Texture::USE_USER_DEFINED_FORMAT);
+    texture->setInternalFormat(internalFormat);
     texture->setImage(image.get());
     texture->apply(state);
 
@@ -492,15 +510,22 @@ GLuint createTextureFromSparkRes(
 spark_editor::DemoTextureSet loadDemoTextures(osg::State& state, std::vector<osg::ref_ptr<osg::Texture2D> >& textureOwners)
 {
     spark_editor::DemoTextureSet textures;
-    textures.explosion = createTextureFromSparkRes("explosion.bmp", state, textureOwners);
-    textures.flash = createTextureFromSparkRes("flash.bmp", state, textureOwners);
-    textures.spark1 = createTextureFromSparkRes("spark1.bmp", state, textureOwners);
-    textures.spark2 = createTextureFromSparkRes("point.bmp", state, textureOwners);
-    textures.wave = createTextureFromSparkRes("wave.bmp", state, textureOwners);
-    textures.flare = createTextureFromSparkRes("flare.bmp", state, textureOwners);
-    textures.point = createTextureFromSparkRes("point.bmp", state, textureOwners);
-    textures.ball = createTextureFromSparkRes("ball.bmp", state, textureOwners);
-    textures.waterdrops = createTextureFromSparkRes("waterdrops.bmp", state, textureOwners);
+    // SPKExplosion.cpp loadTexture paths (GL_CLAMP for all).
+    textures.explosion = createTextureFromSparkRes("explosion.bmp", state, textureOwners, GL_ALPHA, false);
+    textures.flash = createTextureFromSparkRes("flash.bmp", state, textureOwners, GL_RGB, false);
+    textures.spark1 = createTextureFromSparkRes("spark1.bmp", state, textureOwners, GL_RGB, false);
+    textures.spark2 = createTextureFromSparkRes("point.bmp", state, textureOwners, GL_ALPHA, false);
+    textures.wave = createTextureFromSparkRes("wave.bmp", state, textureOwners, GL_RGBA, false);
+    // SPKTest.cpp: explosion.bmp as luminance + mipmaps (separate GL texture from explosion above).
+    textures.explosionSPKTest = createTextureFromSparkRes("explosion.bmp", state, textureOwners, GL_LUMINANCE, true);
+    // SPKTestIrrlicht*.cpp: Irrlicht loads flare.bmp (full color); approximate as RGBA like SPARK GL RGBA paths.
+    textures.flare = createTextureFromSparkRes("flare.bmp", state, textureOwners, GL_RGBA, false);
+    // DX9 demos + SPKFlakes point sprites: D3DXCreateTextureFromFile (full color); match SPARK GL_RGB uploads.
+    textures.point = createTextureFromSparkRes("point.bmp", state, textureOwners, GL_RGB, false);
+    // SPKCollision.cpp
+    textures.ball = createTextureFromSparkRes("ball.bmp", state, textureOwners, GL_RGBA, false);
+    // DX9 RainDemo: waterdrops.bmp via D3DX (full color); use RGBA like wave.bmp in GL demos.
+    textures.waterdrops = createTextureFromSparkRes("waterdrops.bmp", state, textureOwners, GL_RGBA, false);
     return textures;
 }
 
@@ -632,6 +657,20 @@ public:
     {
         EnsureSparkRendererTypesRegistered();
 
+        if (!_loggedGlContextInfo)
+        {
+            _loggedGlContextInfo = true;
+
+            const char* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+            const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+            const char* vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+            const char* glsl = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+            std::cout << "[GL] Version: " << (version ? version : "null") << '\n';
+            std::cout << "[GL] Renderer: " << (renderer ? renderer : "null") << '\n';
+            std::cout << "[GL] Vendor: " << (vendor ? vendor : "null") << '\n';
+            std::cout << "[GL] GLSL: " << (glsl ? glsl : "null") << '\n';
+        }
         if (!_initialized)
         {
             _initialized = true;
@@ -696,6 +735,7 @@ private:
     mutable spark_editor::DemoTextureSet _textures;
     mutable SPK::Ref<SPK::System> _system;
     mutable double _lastSimulationTime;
+    mutable bool _loggedGlContextInfo = false;
     mutable spark_editor::SparkEditorCore _editorCore;
     mutable std::vector<osg::ref_ptr<osg::Texture2D> > _textureOwners;
 };

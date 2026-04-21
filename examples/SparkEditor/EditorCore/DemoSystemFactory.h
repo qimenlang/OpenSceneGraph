@@ -10,7 +10,10 @@ namespace spark_editor
 
 struct DemoTextureSet
 {
+    /** SPKExplosion.cpp: explosion.bmp as GL_ALPHA, GL_CLAMP, no mipmap. */
     GLuint explosion = 0;
+    /** SPKTest.cpp: same file as GL_LUMINANCE, GL_CLAMP, with mipmaps. */
+    GLuint explosionSPKTest = 0;
     GLuint flash = 0;
     GLuint spark1 = 0;
     GLuint spark2 = 0;

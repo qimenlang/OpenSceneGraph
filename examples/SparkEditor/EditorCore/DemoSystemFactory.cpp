@@ -21,7 +21,8 @@ SPK::Ref<SPK::System> createSPKTest(const DemoTextureSet& textures)
     SPK::Ref<SPK::System> system = SPK::System::create(true);
     system->setName("Demo::SPKTest");
 
-    SPK::Ref<SPK::GL::GLQuadRenderer> renderer = makeQuadRenderer(textures.explosion, SPK::BLEND_MODE_ADD);
+    const GLuint explosionTex = textures.explosionSPKTest ? textures.explosionSPKTest : textures.explosion;
+    SPK::Ref<SPK::GL::GLQuadRenderer> renderer = makeQuadRenderer(explosionTex, SPK::BLEND_MODE_ADD);
     SPK::Ref<SPK::SphericEmitter> emitter = SPK::SphericEmitter::create(
         SPK::Vector3D(0.0f, 0.0f, -1.0f), 0.0f, 3.14159f / 4.0f,
         SPK::Point::create(), true, -1, 100.0f, 0.2f, 0.5f);
