@@ -42,6 +42,10 @@ struct EmitterNode
     std::string typeName;
     std::string title;
     std::vector<Property> properties;
+    /** Runtime class name of emitter->getZone() (Point, Sphere, Box, …). */
+    std::string zoneTypeName;
+    /** Editable zone fields per SPARK spark_description setters for that zone type, plus Zone::position. */
+    std::vector<Property> zoneProperties;
 };
 
 struct ModifierNode
@@ -89,7 +93,6 @@ public:
 
 private:
     void applyToSystem(SPK::System& system) const;
-    void rebuildFromData(SPK::Ref<SPK::System>& system) const;
     const char* modifierTypeName(const SPK::Modifier* modifier) const;
     const char* interpolatorTypeName(const SPK::Interpolator<float>* interpolator) const;
 

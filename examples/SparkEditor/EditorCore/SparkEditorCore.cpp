@@ -133,6 +133,99 @@ const char* emitterTypeName(const SPK::Emitter* emitter)
     return "Emitter";
 }
 
+void zoneRuntimeTypeName(SPK::Zone* z, std::string& out)
+{
+    out.clear();
+    if (!z)
+        return;
+    if (dynamic_cast<SPK::Sphere*>(z))
+        out = "Sphere";
+    else if (dynamic_cast<SPK::Box*>(z))
+        out = "Box";
+    else if (dynamic_cast<SPK::Cylinder*>(z))
+        out = "Cylinder";
+    else if (dynamic_cast<SPK::Plane*>(z))
+        out = "Plane";
+    else if (dynamic_cast<SPK::Ring*>(z))
+        out = "Ring";
+    else if (dynamic_cast<SPK::Point*>(z))
+        out = "Point";
+    else
+        out = "Zone";
+}
+
+/** Fills properties to match each zone type's spark_description (plus Zone::position from SPK_Zone.h). */
+void extractEmitterZoneProperties(SPK::Zone* z, std::string& typeName, std::vector<Property>& out)
+{
+    out.clear();
+    typeName.clear();
+    if (!z)
+        return;
+    zoneRuntimeTypeName(z, typeName);
+
+    const float vSpeed = 0.01f;
+    const float vLim = 5000.0f;
+    const float fSpeed = 0.01f;
+
+    out.push_back(makeVec3("zone.position", "Position", z->getPosition(), vSpeed, -vLim, vLim));
+
+    if (SPK::Sphere* s = dynamic_cast<SPK::Sphere*>(z))
+        out.push_back(makeFloat("zone.radius", "Radius", s->getRadius(), fSpeed, 0.0f, 1.0e6f));
+    else if (SPK::Box* b = dynamic_cast<SPK::Box*>(z))
+    {
+        out.push_back(makeVec3("zone.dimensions", "Dimensions", b->getDimensions(), vSpeed, 0.0f, vLim));
+        out.push_back(makeVec3("zone.axisFront", "Axis (front / Z)", b->getZAxis(), vSpeed, -1.0f, 1.0f));
+        out.push_back(makeVec3("zone.axisUp", "Axis (up / Y)", b->getYAxis(), vSpeed, -1.0f, 1.0f));
+    }
+    else if (SPK::Cylinder* c = dynamic_cast<SPK::Cylinder*>(z))
+    {
+        out.push_back(makeVec3("zone.axis", "Axis", c->getAxis(), vSpeed, -1.0f, 1.0f));
+        out.push_back(makeFloat("zone.height", "Height", c->getHeight(), fSpeed, 0.0f, vLim));
+        out.push_back(makeFloat("zone.radius", "Radius", c->getRadius(), fSpeed, 0.0f, vLim));
+    }
+    else if (SPK::Plane* pl = dynamic_cast<SPK::Plane*>(z))
+        out.push_back(makeVec3("zone.normal", "Normal", pl->getNormal(), vSpeed, -1.0f, 1.0f));
+    else if (SPK::Ring* r = dynamic_cast<SPK::Ring*>(z))
+    {
+        out.push_back(makeVec3("zone.normal", "Normal", r->getNormal(), vSpeed, -1.0f, 1.0f));
+        out.push_back(makeFloat("zone.radiusMin", "Radius Min", r->getMinRadius(), fSpeed, 0.0f, vLim));
+        out.push_back(makeFloat("zone.radiusMax", "Radius Max", r->getMaxRadius(), fSpeed, 0.0f, vLim));
+    }
+}
+
+void applyEmitterZoneProperties(SPK::Zone* zone, const std::vector<Property>& props)
+{
+    if (!zone || props.empty())
+        return;
+
+    zone->setPosition(readVec3(props, "zone.position", zone->getPosition()));
+
+    if (SPK::Sphere* s = dynamic_cast<SPK::Sphere*>(zone))
+        s->setRadius(readFloat(props, "zone.radius", s->getRadius()));
+    else if (SPK::Box* b = dynamic_cast<SPK::Box*>(zone))
+    {
+        b->setDimensions(readVec3(props, "zone.dimensions", b->getDimensions()));
+        const SPK::Vector3D front = readVec3(props, "zone.axisFront", b->getZAxis());
+        const SPK::Vector3D up = readVec3(props, "zone.axisUp", b->getYAxis());
+        b->setAxis(front, up);
+    }
+    else if (SPK::Cylinder* c = dynamic_cast<SPK::Cylinder*>(zone))
+    {
+        c->setAxis(readVec3(props, "zone.axis", c->getAxis()));
+        c->setHeight(readFloat(props, "zone.height", c->getHeight()));
+        c->setRadius(readFloat(props, "zone.radius", c->getRadius()));
+    }
+    else if (SPK::Plane* pl = dynamic_cast<SPK::Plane*>(zone))
+        pl->setNormal(readVec3(props, "zone.normal", pl->getNormal()));
+    else if (SPK::Ring* r = dynamic_cast<SPK::Ring*>(zone))
+    {
+        r->setNormal(readVec3(props, "zone.normal", r->getNormal()));
+        float rMin = readFloat(props, "zone.radiusMin", r->getMinRadius());
+        float rMax = readFloat(props, "zone.radiusMax", r->getMaxRadius());
+        r->setRadius(rMin, rMax);
+    }
+}
+
 bool drawProperty(Property& prop, const std::string& scopeId)
 {
     const std::string label = prop.label + "##" + scopeId + "." + prop.key;
@@ -297,10 +390,11 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
         groupNode.properties.push_back(makeInt("capacity", "Capacity", static_cast<int>(group->getCapacity()), 1.0f, 1, 1000000));
         groupNode.properties.push_back(makeFloat("lifeMin", "Life Min", group->getMinLifeTime(), 0.01f, 0.0f, 120.0f));
         groupNode.properties.push_back(makeFloat("lifeMax", "Life Max", group->getMaxLifeTime(), 0.01f, 0.0f, 120.0f));
-        groupNode.properties.push_back(makeBool("immortal", "Immortal", group->isImmortal()));
-        groupNode.properties.push_back(makeBool("still", "Still", group->isStill()));
         groupNode.properties.push_back(makeFloat("radiusGraphical", "Graphical Radius", group->getGraphicalRadius(), 0.01f, 0.0f, 100.0f));
         groupNode.properties.push_back(makeFloat("radiusPhysical", "Physical Radius", group->getPhysicalRadius(), 0.01f, 0.0f, 100.0f));
+        groupNode.properties.push_back(makeBool("immortal", "Immortal", group->isImmortal()));
+        groupNode.properties.push_back(makeBool("still", "Still", group->isStill()));
+        groupNode.properties.push_back(makeBool("sorting", "Sorting", group->isSortingEnabled()));
         data_.groups.push_back(groupNode);
 
         SPK::Ref<SPK::Renderer> rendererRef = group->getRenderer();
@@ -310,7 +404,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             RendererNode r;
             r.groupIndex = static_cast<int>(gi);
             r.typeName = "Renderer";
-            r.title = r.typeName + std::string(" G") + std::to_string(gi);
+            r.title = r.typeName;
             r.properties.push_back(makeBool("active", "Active", renderer->isActive()));
             r.properties.push_back(makeInt("renderingOptions", "Rendering Options", static_cast<int>(renderer->getRenderingOptions()), 1.0f, 0, 65535));
 
@@ -328,7 +422,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             e.groupIndex = static_cast<int>(gi);
             e.emitterIndex = static_cast<int>(ei);
             e.typeName = emitterTypeName(emitter);
-            e.title = e.typeName + std::string(" G") + std::to_string(gi) + ":" + std::to_string(ei);
+            e.title = e.typeName;
             e.properties.push_back(makeBool("active", "Active", emitter->isActive()));
             e.properties.push_back(makeFloat("flow", "Flow", emitter->getFlow(), 0.05f, -1.0f, 500.0f));
             e.properties.push_back(makeInt("tankMin", "Tank Min", emitter->getMinTank(), 1.0f, -1, 100000));
@@ -346,6 +440,9 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             }
             if (SPK::NormalEmitter* normal = dynamic_cast<SPK::NormalEmitter*>(emitter))
                 e.properties.push_back(makeBool("inverted", "Inverted Normal", normal->isInverted()));
+
+            SPK::Zone* zone = emitter->getZone().get();
+            extractEmitterZoneProperties(zone, e.zoneTypeName, e.zoneProperties);
             data_.emitters.push_back(e);
         }
 
@@ -360,7 +457,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             m.groupIndex = static_cast<int>(gi);
             m.modifierIndex = static_cast<int>(mi);
             m.typeName = modifierTypeName(modifier);
-            m.title = m.typeName + std::string(" G") + std::to_string(gi) + ":" + std::to_string(mi);
+            m.title = m.typeName;
 
             if (SPK::Gravity* gravity = dynamic_cast<SPK::Gravity*>(modifier))
                 m.properties.push_back(makeVec3("value", "Value", gravity->getValue(), 0.01f, -500.0f, 500.0f));
@@ -418,7 +515,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             i.groupIndex = static_cast<int>(gi);
             i.param = -1;
             i.typeName = "ColorInterpolator";
-            i.title = "ColorInterpolator G" + std::to_string(gi);
+            i.title = "ColorInterpolator";
             if (SPK::ColorSimpleInterpolator* colorSimple = dynamic_cast<SPK::ColorSimpleInterpolator*>(colorRef.get()))
             {
                 i.typeName = "ColorSimpleInterpolator";
@@ -438,7 +535,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             i.groupIndex = static_cast<int>(gi);
             i.param = static_cast<int>(kParams[pi].first);
             i.typeName = interpolatorTypeName(interpRef.get());
-            i.title = std::string(kParams[pi].second) + "Interpolator G" + std::to_string(gi);
+            i.title = std::string(kParams[pi].second) + "Interpolator";
             if (SPK::FloatRandomInitializer* rnd = dynamic_cast<SPK::FloatRandomInitializer*>(interpRef.get()))
             {
                 i.properties.push_back(makeFloat("min", "Min", rnd->getMinValue(), 0.01f, -1000.0f, 1000.0f));
@@ -475,11 +572,15 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         int capacity = readInt(g.properties, "capacity", static_cast<int>(group->getCapacity()));
         if (capacity < 1)
             capacity = 1;
+        const int minCapacity = std::max(1, static_cast<int>(group->getNbParticles()));
+        if (capacity < minCapacity)
+            capacity = minCapacity;
         if (static_cast<size_t>(capacity) != group->getCapacity())
             group->reallocate(static_cast<size_t>(capacity));
         group->setLifeTime(minLife, maxLife);
         group->setImmortal(readBool(g.properties, "immortal", group->isImmortal()));
         group->setStill(readBool(g.properties, "still", group->isStill()));
+        group->enableSorting(readBool(g.properties, "sorting", group->isSortingEnabled()));
         group->setGraphicalRadius(readFloat(g.properties, "radiusGraphical", group->getGraphicalRadius()));
         group->setPhysicalRadius(readFloat(g.properties, "radiusPhysical", group->getPhysicalRadius()));
     }
@@ -522,6 +623,10 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         }
         if (SPK::NormalEmitter* normal = dynamic_cast<SPK::NormalEmitter*>(emitter))
             normal->setInverted(readBool(e.properties, "inverted", normal->isInverted()));
+
+        SPK::Zone* zone = emitter->getZone().get();
+        if (zone && !e.zoneProperties.empty())
+            applyEmitterZoneProperties(zone, e.zoneProperties);
     }
 
     for (size_t mi = 0; mi < data_.modifiers.size(); ++mi)
@@ -648,21 +753,6 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
     }
 }
 
-void SparkEditorCore::rebuildFromData(SPK::Ref<SPK::System>& system) const
-{
-    if (data_.sourceFilePath.empty())
-        return;
-    SPK::Ref<SPK::System> rebuilt = SPK::IO::Manager::get().load(data_.sourceFilePath);
-    if (!rebuilt)
-    {
-        std::cout << "Rebuild failed: cannot load " << data_.sourceFilePath << std::endl;
-        return;
-    }
-    applyToSystem(*rebuilt);
-    system = rebuilt;
-    std::cout << "System rebuilt from editable data: " << data_.sourceFilePath << std::endl;
-}
-
 void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
 {
     if (!system)
@@ -673,153 +763,264 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
 
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("Groups", ImGuiTreeNodeFlags_DefaultOpen))
+    auto drawEmitterNode = [&changed, &system](EmitterNode& e) {
+        if (!ImGui::TreeNode((e.title + "##emitter").c_str()))
+            return;
+
+        Property* flowProp = findProperty(e.properties, "flow");
+        Property* tankMinProp = findProperty(e.properties, "tankMin");
+        Property* tankMaxProp = findProperty(e.properties, "tankMax");
+
+        for (size_t p = 0; p < e.properties.size(); ++p)
+        {
+            Property& prop = e.properties[p];
+            if (prop.key == "flow" || prop.key == "tankMin" || prop.key == "tankMax")
+                continue;
+            changed = drawProperty(prop, e.title) || changed;
+        }
+
+        if (flowProp && flowProp->type == PropertyType::Float)
+        {
+            float flowV = std::get<float>(flowProp->value);
+            const std::string flowLabel = flowProp->label + "##" + e.title + "." + flowProp->key;
+            float flowMin = flowProp->minValue;
+            if (tankMinProp && tankMaxProp &&
+                tankMinProp->type == PropertyType::Int &&
+                tankMaxProp->type == PropertyType::Int)
+            {
+                const int minV = std::get<int>(tankMinProp->value);
+                const int maxV = std::get<int>(tankMaxProp->value);
+                if (minV < 0 && maxV < 0)
+                    flowMin = 0.0f;
+            }
+            if (ImGui::DragFloat(flowLabel.c_str(), &flowV, flowProp->speed, flowMin, flowProp->maxValue))
+            {
+                flowProp->value = flowV;
+                changed = true;
+            }
+        }
+
+        if (tankMinProp && tankMaxProp &&
+            tankMinProp->type == PropertyType::Int &&
+            tankMaxProp->type == PropertyType::Int)
+        {
+            int minV = std::get<int>(tankMinProp->value);
+            int maxV = std::get<int>(tankMaxProp->value);
+            float flowV = flowProp && flowProp->type == PropertyType::Float ? std::get<float>(flowProp->value) : 0.0f;
+
+            const int tankMinUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMinProp->minValue);
+            const int tankMaxUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMaxProp->minValue);
+
+            bool tankChanged = false;
+            const std::string minLabel = tankMinProp->label + "##" + e.title + "." + tankMinProp->key;
+            const std::string maxLabel = tankMaxProp->label + "##" + e.title + "." + tankMaxProp->key;
+
+            if (ImGui::DragInt(minLabel.c_str(),
+                               &minV,
+                               tankMinProp->speed,
+                               tankMinUiMin,
+                               static_cast<int>(tankMinProp->maxValue)))
+                tankChanged = true;
+
+            if (ImGui::DragInt(maxLabel.c_str(),
+                               &maxV,
+                               tankMaxProp->speed,
+                               tankMaxUiMin,
+                               static_cast<int>(tankMaxProp->maxValue)))
+                tankChanged = true;
+
+            const int oldMin = std::get<int>(tankMinProp->value);
+            const int oldMax = std::get<int>(tankMaxProp->value);
+
+            if (tankChanged || (flowProp && flowProp->type == PropertyType::Float))
+            {
+                sanitizeEmitterTankFlow(flowV, minV, maxV);
+
+                if (flowProp && flowProp->type == PropertyType::Float)
+                    flowProp->value = flowV;
+                tankMinProp->value = minV;
+                tankMaxProp->value = maxV;
+
+                changed = changed || tankChanged || minV != oldMin || maxV != oldMax;
+            }
+        }
+
+        const std::string zoneTreeLabel = "Zone (" + e.zoneTypeName + ")##emitterZone." + std::to_string(e.groupIndex) + "." + std::to_string(e.emitterIndex);
+        if (ImGui::TreeNode(zoneTreeLabel.c_str()))
+        {
+            if (e.zoneTypeName.empty())
+                ImGui::TextDisabled("(no zone)");
+            else
+            {
+                SPK::Zone* liveZone = NULL;
+                if (e.groupIndex >= 0 && static_cast<size_t>(e.groupIndex) < system->getNbGroups())
+                {
+                    SPK::Ref<SPK::Group> gr = system->getGroup(static_cast<size_t>(e.groupIndex));
+                    if (gr && e.emitterIndex >= 0 && static_cast<size_t>(e.emitterIndex) < gr->getNbEmitters())
+                    {
+                        SPK::Emitter* em = gr->getEmitter(static_cast<size_t>(e.emitterIndex)).get();
+                        if (em)
+                            liveZone = em->getZone().get();
+                    }
+                }
+                if (liveZone && liveZone->isShared())
+                    ImGui::TextDisabled("(shared zone — edits affect all references)");
+
+                const std::string zoneScope = e.title + "Zone";
+                for (size_t zi = 0; zi < e.zoneProperties.size(); ++zi)
+                    changed = drawProperty(e.zoneProperties[zi], zoneScope) || changed;
+            }
+            ImGui::TreePop();
+        }
+
+        ImGui::TreePop();
+    };
+
+    auto drawSimpleNode = [&changed](const std::string& treeId, const std::string& title, std::vector<Property>& properties) {
+        if (!ImGui::TreeNode((title + treeId).c_str()))
+            return;
+        if (properties.empty())
+            ImGui::TextUnformatted("No exposed editable properties for this type yet.");
+        for (size_t p = 0; p < properties.size(); ++p)
+            changed = drawProperty(properties[p], title) || changed;
+        ImGui::TreePop();
+    };
+
+    if (ImGui::CollapsingHeader("Particle System Tree", ImGuiTreeNodeFlags_DefaultOpen))
     {
         for (size_t i = 0; i < data_.groups.size(); ++i)
         {
             GroupNode& g = data_.groups[i];
             if (!ImGui::TreeNode((g.title + "##group").c_str()))
                 continue;
-            for (size_t p = 0; p < g.properties.size(); ++p)
-                changed = drawProperty(g.properties[p], g.title) || changed;
-            ImGui::TreePop();
-        }
-    }
 
-    if (ImGui::CollapsingHeader("Emitters", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        for (size_t i = 0; i < data_.emitters.size(); ++i)
-        {
-            EmitterNode& e = data_.emitters[i];
-            if (!ImGui::TreeNode((e.title + "##emitter").c_str()))
-                continue;
-
-            Property* flowProp = findProperty(e.properties, "flow");
-            Property* tankMinProp = findProperty(e.properties, "tankMin");
-            Property* tankMaxProp = findProperty(e.properties, "tankMax");
-
-            for (size_t p = 0; p < e.properties.size(); ++p)
+            if (ImGui::TreeNode(("Group Properties##groupProps." + g.title).c_str()))
             {
-                Property& prop = e.properties[p];
-                if (prop.key == "flow" || prop.key == "tankMin" || prop.key == "tankMax")
+                SPK::Group* liveGroup = NULL;
+                if (g.groupIndex >= 0 && static_cast<size_t>(g.groupIndex) < system->getNbGroups())
+                {
+                    SPK::Ref<SPK::Group> gr = system->getGroup(static_cast<size_t>(g.groupIndex));
+                    if (gr)
+                        liveGroup = gr.get();
+                }
+
+                if (liveGroup)
+                    ImGui::Text("Particles: %zu", liveGroup->getNbParticles());
+                else
+                    ImGui::TextDisabled("Particles: (n/a)");
+
+                for (size_t p = 0; p < g.properties.size(); ++p)
+                {
+                    const std::string& key = g.properties[p].key;
+                    if (key == "immortal" || key == "still" || key == "sorting")
+                        continue;
+                    if (key == "capacity")
+                    {
+                        Property& capProp = g.properties[p];
+                        if (capProp.type == PropertyType::Int)
+                        {
+                            int v = std::get<int>(capProp.value);
+                            const int minCap = liveGroup ? std::max(1, static_cast<int>(liveGroup->getNbParticles())) : 1;
+                            if (v < minCap)
+                            {
+                                v = minCap;
+                                capProp.value = v;
+                                changed = true;
+                            }
+                            const std::string label = capProp.label + "##" + g.title + "." + capProp.key;
+                            if (ImGui::DragInt(label.c_str(), &v, capProp.speed, minCap, static_cast<int>(capProp.maxValue)))
+                            {
+                                if (v < minCap)
+                                    v = minCap;
+                                capProp.value = v;
+                                changed = true;
+                            }
+                        }
+                        continue;
+                    }
+                    changed = drawProperty(g.properties[p], g.title) || changed;
+                }
+
+
+                Property* propImmortal = findProperty(g.properties, "immortal");
+                Property* propStill = findProperty(g.properties, "still");
+                Property* propSorting = findProperty(g.properties, "sorting");
+                if (propImmortal && propImmortal->type == PropertyType::Bool)
+                    changed = drawProperty(*propImmortal, g.title) || changed;
+                if (propStill && propStill->type == PropertyType::Bool)
+                {
+                    ImGui::SameLine();
+                    changed = drawProperty(*propStill, g.title) || changed;
+                }
+                if (propSorting && propSorting->type == PropertyType::Bool)
+                {
+                    ImGui::SameLine();
+                    changed = drawProperty(*propSorting, g.title) || changed;
+                }
+
+                ImGui::TreePop();
+            }
+
+            bool hasRenderer = false;
+            for (size_t ri = 0; ri < data_.renderers.size(); ++ri)
+            {
+                RendererNode& renderer = data_.renderers[ri];
+                if (renderer.groupIndex != g.groupIndex)
                     continue;
-                changed = drawProperty(prop, e.title) || changed;
+                hasRenderer = true;
+                drawSimpleNode("##renderer", renderer.title, renderer.properties);
             }
+            if (!hasRenderer)
+                ImGui::TextDisabled("Renderer: (none)");
 
-            if (flowProp && flowProp->type == PropertyType::Float)
+            bool hasEmitters = false;
+            if (ImGui::TreeNode(("Emitters##emitters." + g.title).c_str()))
             {
-                float flowV = std::get<float>(flowProp->value);
-                const std::string flowLabel = flowProp->label + "##" + e.title + "." + flowProp->key;
-                float flowMin = flowProp->minValue;
-                if (tankMinProp && tankMaxProp &&
-                    tankMinProp->type == PropertyType::Int &&
-                    tankMaxProp->type == PropertyType::Int)
+                for (size_t ei = 0; ei < data_.emitters.size(); ++ei)
                 {
-                    const int minV = std::get<int>(tankMinProp->value);
-                    const int maxV = std::get<int>(tankMaxProp->value);
-                    if (minV < 0 && maxV < 0)
-                        flowMin = 0.0f;
+                    EmitterNode& e = data_.emitters[ei];
+                    if (e.groupIndex != g.groupIndex)
+                        continue;
+                    hasEmitters = true;
+                    drawEmitterNode(e);
                 }
-                if (ImGui::DragFloat(flowLabel.c_str(), &flowV, flowProp->speed, flowMin, flowProp->maxValue))
-                {
-                    flowProp->value = flowV;
-                    changed = true;
-                }
+                if (!hasEmitters)
+                    ImGui::TextDisabled("(none)");
+                ImGui::TreePop();
             }
 
-            if (tankMinProp && tankMaxProp &&
-                tankMinProp->type == PropertyType::Int &&
-                tankMaxProp->type == PropertyType::Int)
+            bool hasModifiers = false;
+            if (ImGui::TreeNode(("Modifiers##modifiers." + g.title).c_str()))
             {
-                int minV = std::get<int>(tankMinProp->value);
-                int maxV = std::get<int>(tankMaxProp->value);
-                float flowV = flowProp && flowProp->type == PropertyType::Float ? std::get<float>(flowProp->value) : 0.0f;
-
-                const std::string minLabel = std::string("Min##") + e.title + "." + tankMinProp->key;
-                const std::string maxLabel = std::string("Max##") + e.title + "." + tankMaxProp->key;
-                const int tankMinUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMinProp->minValue);
-                const int tankMaxUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMaxProp->minValue);
-
-                bool tankChanged = false;
-                ImGui::AlignTextToFramePadding();
-                ImGui::TextUnformatted("Tank");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(140.0f);
-                if (ImGui::DragInt(minLabel.c_str(),
-                                   &minV,
-                                   tankMinProp->speed,
-                                   tankMinUiMin,
-                                   static_cast<int>(tankMinProp->maxValue)))
-                    tankChanged = true;
-
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(140.0f);
-                if (ImGui::DragInt(maxLabel.c_str(),
-                                   &maxV,
-                                   tankMaxProp->speed,
-                                   tankMaxUiMin,
-                                   static_cast<int>(tankMaxProp->maxValue)))
-                    tankChanged = true;
-                const int oldMin = std::get<int>(tankMinProp->value);
-                const int oldMax = std::get<int>(tankMaxProp->value);
-
-                if (tankChanged || (flowProp && flowProp->type == PropertyType::Float))
+                for (size_t mi = 0; mi < data_.modifiers.size(); ++mi)
                 {
-                    sanitizeEmitterTankFlow(flowV, minV, maxV);
-
-                    if (flowProp && flowProp->type == PropertyType::Float)
-                        flowProp->value = flowV;
-                    tankMinProp->value = minV;
-                    tankMaxProp->value = maxV;
-
-                    changed = changed || tankChanged || minV != oldMin || maxV != oldMax;
+                    ModifierNode& m = data_.modifiers[mi];
+                    if (m.groupIndex != g.groupIndex)
+                        continue;
+                    hasModifiers = true;
+                    drawSimpleNode("##modifier", m.title, m.properties);
                 }
+                if (!hasModifiers)
+                    ImGui::TextDisabled("(none)");
+                ImGui::TreePop();
             }
-            ImGui::TreePop();
-        }
-    }
 
-    if (ImGui::CollapsingHeader("Modifiers", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        for (size_t i = 0; i < data_.modifiers.size(); ++i)
-        {
-            ModifierNode& m = data_.modifiers[i];
-            if (!ImGui::TreeNode((m.title + "##modifier").c_str()))
-                continue;
-            if (m.properties.empty())
-                ImGui::TextUnformatted("No exposed editable properties for this modifier type yet.");
-            for (size_t p = 0; p < m.properties.size(); ++p)
-                changed = drawProperty(m.properties[p], m.title) || changed;
-            ImGui::TreePop();
-        }
-    }
+            bool hasInterpolators = false;
+            if (ImGui::TreeNode(("Interpolators##interps." + g.title).c_str()))
+            {
+                for (size_t ii = 0; ii < data_.interpolators.size(); ++ii)
+                {
+                    InterpolatorNode& interp = data_.interpolators[ii];
+                    if (interp.groupIndex != g.groupIndex)
+                        continue;
+                    hasInterpolators = true;
+                    drawSimpleNode("##interp", interp.title, interp.properties);
+                }
+                if (!hasInterpolators)
+                    ImGui::TextDisabled("(none)");
+                ImGui::TreePop();
+            }
 
-    if (ImGui::CollapsingHeader("Interpolators", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        for (size_t i = 0; i < data_.interpolators.size(); ++i)
-        {
-            InterpolatorNode& interp = data_.interpolators[i];
-            if (!ImGui::TreeNode((interp.title + "##interp").c_str()))
-                continue;
-            if (interp.properties.empty())
-                ImGui::TextUnformatted("No exposed editable properties for this interpolator type yet.");
-            for (size_t p = 0; p < interp.properties.size(); ++p)
-                changed = drawProperty(interp.properties[p], interp.title) || changed;
-            ImGui::TreePop();
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Renderers", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        for (size_t i = 0; i < data_.renderers.size(); ++i)
-        {
-            RendererNode& renderer = data_.renderers[i];
-            if (!ImGui::TreeNode((renderer.title + "##renderer").c_str()))
-                continue;
-            if (renderer.properties.empty())
-                ImGui::TextUnformatted("No exposed editable properties for this renderer type yet.");
-            for (size_t p = 0; p < renderer.properties.size(); ++p)
-                changed = drawProperty(renderer.properties[p], renderer.title) || changed;
             ImGui::TreePop();
         }
     }
@@ -827,13 +1028,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
     if (changed)
         applyToSystem(*system);
 
-    if (ImGui::Button("Rebuild System From Editable Data"))
-    {
-        rebuildFromData(system);
-        extractFromSystem(*system);
-    }
-    ImGui::SameLine();
-    ImGui::Text("Source: %s", data_.sourceFilePath.c_str());
+    ImGui::Text("Source File : %s", data_.sourceFilePath.c_str());
 }
 
 } // namespace spark_editor
