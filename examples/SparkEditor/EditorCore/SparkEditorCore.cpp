@@ -198,6 +198,33 @@ bool drawProperty(Property& prop, const std::string& scopeId)
     return false;
 }
 
+void sanitizeEmitterTankFlow(float& flow, int& tankMin, int& tankMax)
+{
+    if (tankMin > tankMax)
+    {
+        // Keep user intent when increasing min beyond max.
+        tankMax = tankMin;
+    }
+    // SPARK requires min/max tank to share the same sign.
+    if (tankMin < 0 || tankMax < 0)
+    {
+        tankMin = -1;
+        tankMax = -1;
+    }
+
+    // Keep legal pairs for SPK assertions:
+    // - if tank is infinite (-1,-1), flow must stay non-negative.
+    if (tankMin < 0 && tankMax < 0 && flow < 0.0f)
+        flow = 0.0f;
+
+    // - if flow is negative, tank must be finite (>= 0).
+    if (flow < 0.0f && (tankMin < 0 || tankMax < 0))
+    {
+        tankMin = 0;
+        tankMax = std::max(0, tankMax);
+    }
+}
+
 } // namespace
 
 void SparkEditorCore::setSourceFilePath(const std::string& sourcePath)
@@ -470,12 +497,12 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
             continue;
 
         emitter->setActive(readBool(e.properties, "active", emitter->isActive()));
-        emitter->setFlow(readFloat(e.properties, "flow", emitter->getFlow()));
+        float flow = readFloat(e.properties, "flow", emitter->getFlow());
         int tankMin = readInt(e.properties, "tankMin", emitter->getMinTank());
         int tankMax = readInt(e.properties, "tankMax", emitter->getMaxTank());
-        if (tankMin > tankMax)
-            std::swap(tankMin, tankMax);
+        sanitizeEmitterTankFlow(flow, tankMin, tankMax);
         emitter->setTank(tankMin, tankMax);
+        emitter->setFlow(flow);
         float forceMin = readFloat(e.properties, "forceMin", emitter->getForceMin());
         float forceMax = readFloat(e.properties, "forceMax", emitter->getForceMax());
         if (forceMin > forceMax)
@@ -666,8 +693,88 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             EmitterNode& e = data_.emitters[i];
             if (!ImGui::TreeNode((e.title + "##emitter").c_str()))
                 continue;
+
+            Property* flowProp = findProperty(e.properties, "flow");
+            Property* tankMinProp = findProperty(e.properties, "tankMin");
+            Property* tankMaxProp = findProperty(e.properties, "tankMax");
+
             for (size_t p = 0; p < e.properties.size(); ++p)
-                changed = drawProperty(e.properties[p], e.title) || changed;
+            {
+                Property& prop = e.properties[p];
+                if (prop.key == "flow" || prop.key == "tankMin" || prop.key == "tankMax")
+                    continue;
+                changed = drawProperty(prop, e.title) || changed;
+            }
+
+            if (flowProp && flowProp->type == PropertyType::Float)
+            {
+                float flowV = std::get<float>(flowProp->value);
+                const std::string flowLabel = flowProp->label + "##" + e.title + "." + flowProp->key;
+                float flowMin = flowProp->minValue;
+                if (tankMinProp && tankMaxProp &&
+                    tankMinProp->type == PropertyType::Int &&
+                    tankMaxProp->type == PropertyType::Int)
+                {
+                    const int minV = std::get<int>(tankMinProp->value);
+                    const int maxV = std::get<int>(tankMaxProp->value);
+                    if (minV < 0 && maxV < 0)
+                        flowMin = 0.0f;
+                }
+                if (ImGui::DragFloat(flowLabel.c_str(), &flowV, flowProp->speed, flowMin, flowProp->maxValue))
+                {
+                    flowProp->value = flowV;
+                    changed = true;
+                }
+            }
+
+            if (tankMinProp && tankMaxProp &&
+                tankMinProp->type == PropertyType::Int &&
+                tankMaxProp->type == PropertyType::Int)
+            {
+                int minV = std::get<int>(tankMinProp->value);
+                int maxV = std::get<int>(tankMaxProp->value);
+                float flowV = flowProp && flowProp->type == PropertyType::Float ? std::get<float>(flowProp->value) : 0.0f;
+
+                const std::string minLabel = std::string("Min##") + e.title + "." + tankMinProp->key;
+                const std::string maxLabel = std::string("Max##") + e.title + "." + tankMaxProp->key;
+                const int tankMinUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMinProp->minValue);
+                const int tankMaxUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMaxProp->minValue);
+
+                bool tankChanged = false;
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted("Tank");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(140.0f);
+                if (ImGui::DragInt(minLabel.c_str(),
+                                   &minV,
+                                   tankMinProp->speed,
+                                   tankMinUiMin,
+                                   static_cast<int>(tankMinProp->maxValue)))
+                    tankChanged = true;
+
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(140.0f);
+                if (ImGui::DragInt(maxLabel.c_str(),
+                                   &maxV,
+                                   tankMaxProp->speed,
+                                   tankMaxUiMin,
+                                   static_cast<int>(tankMaxProp->maxValue)))
+                    tankChanged = true;
+                const int oldMin = std::get<int>(tankMinProp->value);
+                const int oldMax = std::get<int>(tankMaxProp->value);
+
+                if (tankChanged || (flowProp && flowProp->type == PropertyType::Float))
+                {
+                    sanitizeEmitterTankFlow(flowV, minV, maxV);
+
+                    if (flowProp && flowProp->type == PropertyType::Float)
+                        flowProp->value = flowV;
+                    tankMinProp->value = minV;
+                    tankMaxProp->value = maxV;
+
+                    changed = changed || tankChanged || minV != oldMin || maxV != oldMax;
+                }
+            }
             ImGui::TreePop();
         }
     }
