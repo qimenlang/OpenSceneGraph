@@ -84,6 +84,17 @@ struct SystemEditableData
     std::vector<RendererNode> renderers;
 };
 
+/** Per-group transient UI for "New … + Add" rows (not serialized). */
+struct GroupAddUiState
+{
+    int modifierKind = 0;
+    int emitterKind = 0;
+    int rendererKind = 0;
+    int colorInterpKind = 0;
+    int floatInterpParam = 0;
+    int floatInterpKind = 0;
+};
+
 class SparkEditorCore
 {
 public:
@@ -97,6 +108,7 @@ private:
     const char* interpolatorTypeName(const SPK::Interpolator<float>* interpolator) const;
 
     SystemEditableData data_;
+    std::vector<GroupAddUiState> groupAddUi_;
 };
 
 } // namespace spark_editor

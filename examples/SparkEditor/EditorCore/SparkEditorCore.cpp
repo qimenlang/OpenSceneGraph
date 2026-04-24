@@ -1,5 +1,9 @@
 ﻿#include "SparkEditorCore.h"
 
+#include "Rendering/OpenGL/SPK_GL_LineRenderer.h"
+#include "Rendering/OpenGL/SPK_GL_PointRenderer.h"
+#include "Rendering/OpenGL/SPK_GL_QuadRenderer.h"
+
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -315,7 +319,7 @@ void sanitizeEmitterTankFlow(float& flow, int& tankMin, int& tankMax)
     if (flow < 0.0f && (tankMin < 0 || tankMax < 0))
     {
         tankMin = 0;
-        tankMax = std::max(0, tankMax);
+        tankMax = (std::max)(0, tankMax);
     }
 }
 
@@ -417,6 +421,216 @@ void applyFloatGraphProperties(const std::vector<Property>& props, SPK::FloatGra
     }
 }
 
+std::string makeImGuiComboItems(const char* const* labels, int n)
+{
+    std::string s;
+    for (int i = 0; i < n; ++i)
+    {
+        s += labels[i];
+        s.push_back('\0');
+    }
+    s.push_back('\0');
+    return s;
+}
+
+SPK::Ref<SPK::ColorInterpolator> spawnColorInterpolator(int kind)
+{
+    switch (kind)
+    {
+    case 0:
+        return SPK::ColorSimpleInterpolator::create(0xFFFFFFFF, 0xFF000000);
+    case 1:
+        return SPK::ColorDefaultInitializer::create(0xFFFFFFFF);
+    case 2:
+        return SPK::ColorRandomInitializer::create(0xFF606060, 0xFFFFFFFF);
+    case 3:
+        return SPK::ColorRandomInterpolator::create(0xFFAAAAAA, 0xFFFFFFFF, 0xFF000000, 0xFF444444);
+    case 4:
+    {
+        SPK::Ref<SPK::ColorGraphInterpolator> g = SPK::ColorGraphInterpolator::create();
+        g->addEntry(0.0f, 0xFFFFFFFF);
+        g->addEntry(1.0f, 0xFF000000);
+        return g;
+    }
+    default:
+        return SPK::ColorSimpleInterpolator::create(0xFFFFFFFF, 0xFF000000);
+    }
+}
+
+SPK::Ref<SPK::FloatInterpolator> spawnFloatInterpolator(int kind)
+{
+    switch (kind)
+    {
+    case 0:
+        return SPK::FloatSimpleInterpolator::create(0.0f, 1.0f);
+    case 1:
+        return SPK::FloatDefaultInitializer::create(1.0f);
+    case 2:
+        return SPK::FloatRandomInitializer::create(0.0f, 1.0f);
+    case 3:
+        return SPK::FloatRandomInterpolator::create(0.0f, 1.0f, 0.0f, 1.0f);
+    case 4:
+    {
+        SPK::Ref<SPK::FloatGraphInterpolator> g = SPK::FloatGraphInterpolator::create();
+        g->addEntry(0.0f, 0.0f, 1.0f);
+        g->addEntry(1.0f, 1.0f, 0.0f);
+        return g;
+    }
+    default:
+        return SPK::FloatSimpleInterpolator::create(0.0f, 1.0f);
+    }
+}
+
+SPK::Ref<SPK::Modifier> spawnModifier(int kind)
+{
+    switch (kind)
+    {
+    case 0:
+        return SPK::Gravity::create(SPK::Vector3D(0.0f, -1.0f, 0.0f));
+    case 1:
+        return SPK::Friction::create(0.2f);
+    case 2:
+        return SPK::Obstacle::create(SPK::Sphere::create(SPK::Vector3D(), 2.0f), 0.8f, 0.9f);
+    case 3:
+        return SPK::LinearForce::create(SPK::Vector3D(0.0f, 0.5f, 0.0f), SPK::Sphere::create(SPK::Vector3D(), 5.0f), SPK::ZONE_TEST_INSIDE);
+    case 4:
+        return SPK::Collider::create(0.8f);
+    case 5:
+        return SPK::PointMass::create(SPK::Vector3D(), 10.0f, 0.1f);
+    case 6:
+        return SPK::RandomForce::create(SPK::Vector3D(-0.2f, -0.2f, -0.2f), SPK::Vector3D(0.2f, 0.2f, 0.2f), 0.5f, 1.5f);
+    case 7:
+        return SPK::Vortex::create(SPK::Vector3D(), SPK::Vector3D(0.0f, 1.0f, 0.0f), 1.0f, 0.0f);
+    case 8:
+        return SPK::EmitterAttacher::create(SPK_NULL_REF, SPK_NULL_REF, false, false);
+    case 9:
+        return SPK::Destroyer::create(SPK::Sphere::create(SPK::Vector3D(), 50.0f), SPK::ZONE_TEST_INSIDE);
+    case 10:
+        return SPK::Rotator::create();
+    default:
+        return SPK::Gravity::create();
+    }
+}
+
+SPK::Ref<SPK::Emitter> spawnEmitter(int kind)
+{
+    SPK::Ref<SPK::Point> point = SPK::Point::create();
+    switch (kind)
+    {
+    case 0:
+        return SPK::StaticEmitter::create(point, true, -1, 20.0f);
+    case 1:
+        return SPK::RandomEmitter::create(point, true, -1, 25.0f, 0.2f, 0.8f);
+    case 2:
+        return SPK::StraightEmitter::create(SPK::Vector3D(0.0f, 1.0f, 0.0f), point, true, -1, 20.0f, 0.2f, 0.8f);
+    case 3:
+        return SPK::SphericEmitter::create(SPK::Vector3D(0.0f, 1.0f, 0.0f), 0.0f, 3.14159f * 0.5f, point, true, -1, 25.0f, 0.2f, 0.8f);
+    case 4:
+        return SPK::NormalEmitter::create(point, true, -1, 20.0f, 0.2f, 0.8f);
+    default:
+        return SPK::RandomEmitter::create(point);
+    }
+}
+
+SPK::Ref<SPK::Renderer> spawnRenderer(int kind)
+{
+    switch (kind)
+    {
+    case 0:
+        return SPK::GL::GLQuadRenderer::create(1.0f, 1.0f);
+    case 1:
+        return SPK::GL::GLPointRenderer::create(3.0f);
+    case 2:
+        return SPK::GL::GLLineRenderer::create(0.15f, 2.0f);
+    default:
+        return SPK::GL::GLQuadRenderer::create(1.0f, 1.0f);
+    }
+}
+
+const char* rendererTypeName(const SPK::Renderer* renderer)
+{
+    if (dynamic_cast<const SPK::GL::GLQuadRenderer*>(renderer))
+        return "GLQuadRenderer";
+    if (dynamic_cast<const SPK::GL::GLPointRenderer*>(renderer))
+        return "GLPointRenderer";
+    if (dynamic_cast<const SPK::GL::GLLineRenderer*>(renderer))
+        return "GLLineRenderer";
+    return "Renderer";
+}
+
+int rendererSpawnKind(const SPK::Renderer* renderer)
+{
+    if (dynamic_cast<const SPK::GL::GLQuadRenderer*>(renderer))
+        return 0;
+    if (dynamic_cast<const SPK::GL::GLPointRenderer*>(renderer))
+        return 1;
+    if (dynamic_cast<const SPK::GL::GLLineRenderer*>(renderer))
+        return 2;
+    return 0;
+}
+
+void spawnNewGroup(SPK::System& system)
+{
+    SPK::Ref<SPK::Group> g = system.createGroup(500);
+    if (!g)
+        return;
+    g->setLifeTime(1.0f, 4.0f);
+    g->setRadius(0.1f);
+    g->addEmitter(spawnEmitter(1));
+}
+
+static const char* kModifierSpawnLabels[] = {
+    "Gravity",
+    "Friction",
+    "Obstacle",
+    "LinearForce",
+    "Collider",
+    "PointMass",
+    "RandomForce",
+    "Vortex",
+    "EmitterAttacher",
+    "Destroyer",
+    "Rotator"};
+static const int kNbModifierSpawns = static_cast<int>(sizeof(kModifierSpawnLabels) / sizeof(kModifierSpawnLabels[0]));
+
+static const char* kEmitterSpawnLabels[] = {
+    "StaticEmitter",
+    "RandomEmitter",
+    "StraightEmitter",
+    "SphericEmitter",
+    "NormalEmitter"};
+static const int kNbEmitterSpawns = static_cast<int>(sizeof(kEmitterSpawnLabels) / sizeof(kEmitterSpawnLabels[0]));
+
+static const char* kRendererSpawnLabels[] = {
+    "GLQuadRenderer",
+    "GLPointRenderer",
+    "GLLineRenderer"};
+static const int kNbRendererSpawns = static_cast<int>(sizeof(kRendererSpawnLabels) / sizeof(kRendererSpawnLabels[0]));
+
+static const char* kColorInterpSpawnLabels[] = {
+    "ColorSimpleInterpolator",
+    "ColorDefaultInitializer",
+    "ColorRandomInitializer",
+    "ColorRandomInterpolator",
+    "ColorGraphInterpolator"};
+static const int kNbColorInterpSpawns = static_cast<int>(sizeof(kColorInterpSpawnLabels) / sizeof(kColorInterpSpawnLabels[0]));
+
+static const char* kFloatInterpSpawnLabels[] = {
+    "FloatSimpleInterpolator",
+    "FloatDefaultInitializer",
+    "FloatRandomInitializer",
+    "FloatRandomInterpolator",
+    "FloatGraphInterpolator"};
+static const int kNbFloatInterpSpawns = static_cast<int>(sizeof(kFloatInterpSpawnLabels) / sizeof(kFloatInterpSpawnLabels[0]));
+
+static const char* kParamSlotLabels[] = {
+    "scale",
+    "mass",
+    "angle",
+    "textureIndex",
+    "rotationSpeed"};
+static const int kNbParamSlots = static_cast<int>(sizeof(kParamSlotLabels) / sizeof(kParamSlotLabels[0]));
+
 } // namespace
 
 void SparkEditorCore::setSourceFilePath(const std::string& sourcePath)
@@ -508,7 +722,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             SPK::Renderer* renderer = rendererRef.get();
             RendererNode r;
             r.groupIndex = static_cast<int>(gi);
-            r.typeName = "Renderer";
+            r.typeName = rendererTypeName(renderer);
             r.title = r.typeName;
             r.properties.push_back(makeBool("active", "Active", renderer->isActive()));
             r.properties.push_back(makeInt("renderingOptions", "Rendering Options", static_cast<int>(renderer->getRenderingOptions()), 1.0f, 0, 65535));
@@ -527,7 +741,16 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             e.groupIndex = static_cast<int>(gi);
             e.emitterIndex = static_cast<int>(ei);
             e.typeName = emitterTypeName(emitter);
-            e.title = e.typeName;
+            int sameTypeOrdinal = 1;
+            for (size_t prev = 0; prev < data_.emitters.size(); ++prev)
+            {
+                if (data_.emitters[prev].groupIndex == static_cast<int>(gi) &&
+                    data_.emitters[prev].typeName == e.typeName)
+                {
+                    ++sameTypeOrdinal;
+                }
+            }
+            e.title = e.typeName + " " + std::to_string(sameTypeOrdinal);
             e.properties.push_back(makeBool("active", "Active", emitter->isActive()));
             e.properties.push_back(makeFloat("flow", "Flow", emitter->getFlow(), 0.05f, -1.0f, 500.0f));
             e.properties.push_back(makeInt("tankMin", "Tank Min", emitter->getMinTank(), 1.0f, -1, 100000));
@@ -722,7 +945,7 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         int capacity = readInt(g.properties, "capacity", static_cast<int>(group->getCapacity()));
         if (capacity < 1)
             capacity = 1;
-        const int minCapacity = std::max(1, static_cast<int>(group->getNbParticles()));
+        const int minCapacity = (std::max)(1, static_cast<int>(group->getNbParticles()));
         if (capacity < minCapacity)
             capacity = minCapacity;
         if (static_cast<size_t>(capacity) != group->getCapacity())
@@ -948,7 +1171,8 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
     bool changed = false;
 
     auto drawEmitterNode = [&changed, &system](EmitterNode& e) {
-        if (!ImGui::TreeNode((e.title + "##emitter").c_str()))
+        const std::string emitterScope = "emitter." + std::to_string(e.groupIndex) + "." + std::to_string(e.emitterIndex);
+        if (!ImGui::TreeNode((e.title + "##" + emitterScope).c_str()))
             return;
 
         Property* flowProp = findProperty(e.properties, "flow");
@@ -960,13 +1184,13 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             Property& prop = e.properties[p];
             if (prop.key == "flow" || prop.key == "tankMin" || prop.key == "tankMax")
                 continue;
-            changed = drawProperty(prop, e.title) || changed;
+            changed = drawProperty(prop, emitterScope) || changed;
         }
 
         if (flowProp && flowProp->type == PropertyType::Float)
         {
             float flowV = std::get<float>(flowProp->value);
-            const std::string flowLabel = flowProp->label + "##" + e.title + "." + flowProp->key;
+            const std::string flowLabel = flowProp->label + "##" + emitterScope + "." + flowProp->key;
             float flowMin = flowProp->minValue;
             if (tankMinProp && tankMaxProp &&
                 tankMinProp->type == PropertyType::Int &&
@@ -996,8 +1220,8 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             const int tankMaxUiMin = (flowV < 0.0f) ? 0 : static_cast<int>(tankMaxProp->minValue);
 
             bool tankChanged = false;
-            const std::string minLabel = tankMinProp->label + "##" + e.title + "." + tankMinProp->key;
-            const std::string maxLabel = tankMaxProp->label + "##" + e.title + "." + tankMaxProp->key;
+            const std::string minLabel = tankMinProp->label + "##" + emitterScope + "." + tankMinProp->key;
+            const std::string maxLabel = tankMaxProp->label + "##" + emitterScope + "." + tankMaxProp->key;
 
             if (ImGui::DragInt(minLabel.c_str(),
                                &minV,
@@ -1050,7 +1274,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                 if (liveZone && liveZone->isShared())
                     ImGui::TextDisabled("(shared zone — edits affect all references)");
 
-                const std::string zoneScope = e.title + "Zone";
+                const std::string zoneScope = emitterScope + ".zone";
                 for (size_t zi = 0; zi < e.zoneProperties.size(); ++zi)
                     changed = drawProperty(e.zoneProperties[zi], zoneScope) || changed;
             }
@@ -1072,24 +1296,32 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
 
     if (ImGui::CollapsingHeader("Particle System Tree", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        groupAddUi_.resize(data_.groups.size());
+        bool pendingTreeResync = false;
+
         for (size_t i = 0; i < data_.groups.size(); ++i)
         {
             GroupNode& g = data_.groups[i];
+            GroupAddUiState& addSt = groupAddUi_[i];
+            addSt.modifierKind = std::clamp(addSt.modifierKind, 0, kNbModifierSpawns - 1);
+            addSt.emitterKind = std::clamp(addSt.emitterKind, 0, kNbEmitterSpawns - 1);
+            addSt.rendererKind = std::clamp(addSt.rendererKind, 0, kNbRendererSpawns - 1);
+            addSt.colorInterpKind = std::clamp(addSt.colorInterpKind, 0, kNbColorInterpSpawns - 1);
+            addSt.floatInterpParam = std::clamp(addSt.floatInterpParam, 0, kNbParamSlots - 1);
+            addSt.floatInterpKind = std::clamp(addSt.floatInterpKind, 0, kNbFloatInterpSpawns - 1);
+
             if (!ImGui::TreeNode((g.title + "##group").c_str()))
                 continue;
 
+            SPK::Ref<SPK::Group> liveGroupRef;
+            if (g.groupIndex >= 0 && static_cast<size_t>(g.groupIndex) < system->getNbGroups())
+                liveGroupRef = system->getGroup(static_cast<size_t>(g.groupIndex));
+            SPK::Group* liveGroupPtr = liveGroupRef.get();
+
             if (ImGui::TreeNode(("Group Properties##groupProps." + g.title).c_str()))
             {
-                SPK::Group* liveGroup = NULL;
-                if (g.groupIndex >= 0 && static_cast<size_t>(g.groupIndex) < system->getNbGroups())
-                {
-                    SPK::Ref<SPK::Group> gr = system->getGroup(static_cast<size_t>(g.groupIndex));
-                    if (gr)
-                        liveGroup = gr.get();
-                }
-
-                if (liveGroup)
-                    ImGui::Text("Particles: %zu", liveGroup->getNbParticles());
+                if (liveGroupPtr)
+                    ImGui::Text("Particles: %zu", liveGroupPtr->getNbParticles());
                 else
                     ImGui::TextDisabled("Particles: (n/a)");
 
@@ -1104,7 +1336,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                         if (capProp.type == PropertyType::Int)
                         {
                             int v = std::get<int>(capProp.value);
-                            const int minCap = liveGroup ? std::max(1, static_cast<int>(liveGroup->getNbParticles())) : 1;
+                            const int minCap = liveGroupPtr ? (std::max)(1, static_cast<int>(liveGroupPtr->getNbParticles())) : 1;
                             if (v < minCap)
                             {
                                 v = minCap;
@@ -1145,19 +1377,57 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                 ImGui::TreePop();
             }
 
-            bool hasRenderer = false;
-            for (size_t ri = 0; ri < data_.renderers.size(); ++ri)
+            if (ImGui::TreeNode(("Renderer##rendererTree." + g.title).c_str()))
             {
-                RendererNode& renderer = data_.renderers[ri];
-                if (renderer.groupIndex != g.groupIndex)
-                    continue;
-                hasRenderer = true;
-                drawSimpleNode("##renderer", renderer.title, renderer.properties);
-            }
-            if (!hasRenderer)
-                ImGui::TextDisabled("Renderer: (none)");
+                bool hasRenderer = false;
+                for (size_t ri = 0; ri < data_.renderers.size(); ++ri)
+                {
+                    RendererNode& renderer = data_.renderers[ri];
+                    if (renderer.groupIndex != g.groupIndex)
+                        continue;
+                    hasRenderer = true;
+                    drawSimpleNode("##renderer", renderer.title, renderer.properties);
+                }
 
-            bool hasEmitters = false;
+                if (!hasRenderer)
+                {
+                    ImGui::TextDisabled("(none)");
+                    ImGui::PushID(static_cast<int>(static_cast<int>(i) * 10 + 1));
+                    ImGui::TextUnformatted("New");
+                    ImGui::SameLine();
+                    {
+                        const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                        float comboW = ImGui::GetContentRegionAvail().x - addBtnW - ImGui::GetStyle().ItemSpacing.x;
+                        if (comboW < 80.0f)
+                            comboW = 80.0f;
+                        ImGui::SetNextItemWidth(comboW);
+                    }
+                    const std::string rendItems = makeImGuiComboItems(kRendererSpawnLabels, kNbRendererSpawns);
+                    ImGui::Combo("##rendererSpawn", &addSt.rendererKind, rendItems.c_str());
+                    ImGui::SameLine();
+                    if (ImGui::Button("+##addRenderer") && liveGroupPtr)
+                    {
+                        liveGroupPtr->setRenderer(spawnRenderer(addSt.rendererKind));
+                        pendingTreeResync = true;
+                    }
+                    ImGui::PopID();
+                }
+                else if (liveGroupPtr)
+                {
+                    int currentKind = rendererSpawnKind(liveGroupPtr->getRenderer().get());
+                    ImGui::TextUnformatted("Type");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    const std::string rendItems = makeImGuiComboItems(kRendererSpawnLabels, kNbRendererSpawns);
+                    if (ImGui::Combo(("##rendererTypeSwitch." + g.title).c_str(), &currentKind, rendItems.c_str()))
+                    {
+                        liveGroupPtr->setRenderer(spawnRenderer(currentKind));
+                        pendingTreeResync = true;
+                    }
+                }
+                ImGui::TreePop();
+            }
+
             if (ImGui::TreeNode(("Emitters##emitters." + g.title).c_str()))
             {
                 for (size_t ei = 0; ei < data_.emitters.size(); ++ei)
@@ -1165,15 +1435,42 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     EmitterNode& e = data_.emitters[ei];
                     if (e.groupIndex != g.groupIndex)
                         continue;
-                    hasEmitters = true;
                     drawEmitterNode(e);
                 }
-                if (!hasEmitters)
+                bool anyEmitter = false;
+                for (size_t ei = 0; ei < data_.emitters.size(); ++ei)
+                {
+                    if (data_.emitters[ei].groupIndex == g.groupIndex)
+                    {
+                        anyEmitter = true;
+                        break;
+                    }
+                }
+                if (!anyEmitter)
                     ImGui::TextDisabled("(none)");
+
+                ImGui::PushID(static_cast<int>(static_cast<int>(i) * 10 + 2));
+                ImGui::TextUnformatted("New");
+                ImGui::SameLine();
+                {
+                    const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                    float comboW = ImGui::GetContentRegionAvail().x - addBtnW - ImGui::GetStyle().ItemSpacing.x;
+                    if (comboW < 80.0f)
+                        comboW = 80.0f;
+                    ImGui::SetNextItemWidth(comboW);
+                }
+                const std::string emItems = makeImGuiComboItems(kEmitterSpawnLabels, kNbEmitterSpawns);
+                ImGui::Combo("##emitterSpawn", &addSt.emitterKind, emItems.c_str());
+                ImGui::SameLine();
+                if (ImGui::Button("+##addEmitter") && liveGroupPtr)
+                {
+                    liveGroupPtr->addEmitter(spawnEmitter(addSt.emitterKind));
+                    pendingTreeResync = true;
+                }
+                ImGui::PopID();
                 ImGui::TreePop();
             }
 
-            bool hasModifiers = false;
             if (ImGui::TreeNode(("Modifiers##modifiers." + g.title).c_str()))
             {
                 for (size_t mi = 0; mi < data_.modifiers.size(); ++mi)
@@ -1181,15 +1478,57 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     ModifierNode& m = data_.modifiers[mi];
                     if (m.groupIndex != g.groupIndex)
                         continue;
-                    hasModifiers = true;
                     drawSimpleNode("##modifier", m.title, m.properties);
                 }
-                if (!hasModifiers)
+                bool anyMod = false;
+                for (size_t mi = 0; mi < data_.modifiers.size(); ++mi)
+                {
+                    if (data_.modifiers[mi].groupIndex == g.groupIndex)
+                    {
+                        anyMod = true;
+                        break;
+                    }
+                }
+                if (!anyMod)
                     ImGui::TextDisabled("(none)");
+
+                ImGui::PushID(static_cast<int>(static_cast<int>(i) * 10 + 3));
+                ImGui::TextUnformatted("New");
+                ImGui::SameLine();
+                {
+                    const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                    float comboW = ImGui::GetContentRegionAvail().x - addBtnW - ImGui::GetStyle().ItemSpacing.x;
+                    if (comboW < 80.0f)
+                        comboW = 80.0f;
+                    ImGui::SetNextItemWidth(comboW);
+                }
+                const std::string modItems = makeImGuiComboItems(kModifierSpawnLabels, kNbModifierSpawns);
+                ImGui::Combo("##modifierSpawn", &addSt.modifierKind, modItems.c_str());
+                ImGui::SameLine();
+                const char* selectedModifierType = kModifierSpawnLabels[addSt.modifierKind];
+                bool modifierTypeExists = false;
+                for (size_t mi = 0; mi < data_.modifiers.size(); ++mi)
+                {
+                    if (data_.modifiers[mi].groupIndex == g.groupIndex &&
+                        data_.modifiers[mi].typeName == selectedModifierType)
+                    {
+                        modifierTypeExists = true;
+                        break;
+                    }
+                }
+                ImGui::BeginDisabled(!liveGroupPtr || modifierTypeExists);
+                if (ImGui::Button("+##addModifier") && liveGroupPtr)
+                {
+                    liveGroupPtr->addModifier(spawnModifier(addSt.modifierKind));
+                    pendingTreeResync = true;
+                }
+                ImGui::EndDisabled();
+                if (modifierTypeExists)
+                    ImGui::TextDisabled("  (exists)");
+                ImGui::PopID();
                 ImGui::TreePop();
             }
 
-            bool hasInterpolators = false;
             if (ImGui::TreeNode(("Interpolators##interps." + g.title).c_str()))
             {
                 for (size_t ii = 0; ii < data_.interpolators.size(); ++ii)
@@ -1197,16 +1536,138 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     InterpolatorNode& interp = data_.interpolators[ii];
                     if (interp.groupIndex != g.groupIndex)
                         continue;
-                    hasInterpolators = true;
                     drawSimpleNode("##interp", interp.title, interp.properties);
                 }
-                if (!hasInterpolators)
+                bool anyInterp = false;
+                for (size_t ii = 0; ii < data_.interpolators.size(); ++ii)
+                {
+                    if (data_.interpolators[ii].groupIndex == g.groupIndex)
+                    {
+                        anyInterp = true;
+                        break;
+                    }
+                }
+                if (!anyInterp)
                     ImGui::TextDisabled("(none)");
+
+                ImGui::PushID(static_cast<int>(static_cast<int>(i) * 10 + 4));
+                ImGui::TextUnformatted("New color");
+                ImGui::SameLine();
+                {
+                    const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                    float comboW = ImGui::GetContentRegionAvail().x - addBtnW - ImGui::GetStyle().ItemSpacing.x;
+                    if (comboW < 80.0f)
+                        comboW = 80.0f;
+                    ImGui::SetNextItemWidth(comboW);
+                }
+                const std::string cItems = makeImGuiComboItems(kColorInterpSpawnLabels, kNbColorInterpSpawns);
+                ImGui::Combo("##colorInterpSpawn", &addSt.colorInterpKind, cItems.c_str());
+                ImGui::SameLine();
+                const char* selectedColorInterpType = kColorInterpSpawnLabels[addSt.colorInterpKind];
+                bool colorInterpTypeExists = false;
+                for (size_t ii = 0; ii < data_.interpolators.size(); ++ii)
+                {
+                    if (data_.interpolators[ii].groupIndex == g.groupIndex &&
+                        data_.interpolators[ii].typeName == selectedColorInterpType)
+                    {
+                        colorInterpTypeExists = true;
+                        break;
+                    }
+                }
+                ImGui::BeginDisabled(!liveGroupPtr || colorInterpTypeExists);
+                if (ImGui::Button("+##addColorInterp") && liveGroupPtr)
+                {
+                    liveGroupPtr->setColorInterpolator(spawnColorInterpolator(addSt.colorInterpKind));
+                    pendingTreeResync = true;
+                }
+                ImGui::EndDisabled();
+                if (colorInterpTypeExists)
+                    ImGui::TextDisabled("  (exists)");
+                ImGui::PopID();
+
+                ImGui::PushID(static_cast<int>(static_cast<int>(i) * 10 + 5));
+                ImGui::TextUnformatted("New float param");
+                ImGui::SameLine();
+                {
+                    const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+                    float remain = ImGui::GetContentRegionAvail().x - addBtnW - spacing * 2.0f;
+                    if (remain < 180.0f)
+                        remain = 180.0f;
+                    float paramW = remain * 0.30f;
+                    if (paramW < 90.0f)
+                        paramW = 90.0f;
+                    if (paramW > 180.0f)
+                        paramW = 180.0f;
+                    float interpW = remain - paramW;
+                    if (interpW < 90.0f)
+                    {
+                        interpW = 90.0f;
+                        paramW = remain - interpW;
+                        if (paramW < 90.0f)
+                            paramW = 90.0f;
+                    }
+                    ImGui::SetNextItemWidth(paramW);
+                    const std::string pItems = makeImGuiComboItems(kParamSlotLabels, kNbParamSlots);
+                    ImGui::Combo("##floatParamSlot", &addSt.floatInterpParam, pItems.c_str());
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(interpW);
+                    const std::string fItems = makeImGuiComboItems(kFloatInterpSpawnLabels, kNbFloatInterpSpawns);
+                    ImGui::Combo("##floatInterpSpawn", &addSt.floatInterpKind, fItems.c_str());
+                }
+                ImGui::SameLine();
+                const char* selectedFloatInterpType = kFloatInterpSpawnLabels[addSt.floatInterpKind];
+                bool floatInterpTypeExists = false;
+                for (size_t ii = 0; ii < data_.interpolators.size(); ++ii)
+                {
+                    if (data_.interpolators[ii].groupIndex == g.groupIndex &&
+                        data_.interpolators[ii].typeName == selectedFloatInterpType)
+                    {
+                        floatInterpTypeExists = true;
+                        break;
+                    }
+                }
+                ImGui::BeginDisabled(!liveGroupPtr || floatInterpTypeExists);
+                if (ImGui::Button("+##addFloatInterp") && liveGroupPtr)
+                {
+                    const SPK::Param p = static_cast<SPK::Param>(addSt.floatInterpParam);
+                    liveGroupPtr->setParamInterpolator(p, spawnFloatInterpolator(addSt.floatInterpKind));
+                    pendingTreeResync = true;
+                }
+                ImGui::EndDisabled();
+                if (floatInterpTypeExists)
+                    ImGui::TextDisabled("  (exists)");
+                ImGui::PopID();
+
                 ImGui::TreePop();
             }
 
             ImGui::TreePop();
         }
+
+        static const char* kSystemGroupLabels[] = {"Group"};
+        static int sNewSystemGroupKind = 0;
+        sNewSystemGroupKind = std::clamp(sNewSystemGroupKind, 0, 0);
+        ImGui::TextUnformatted("New group");
+        ImGui::SameLine();
+        {
+            const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+            float comboW = ImGui::GetContentRegionAvail().x - addBtnW - ImGui::GetStyle().ItemSpacing.x;
+            if (comboW < 100.0f)
+                comboW = 100.0f;
+            ImGui::SetNextItemWidth(comboW);
+            const std::string gItems = makeImGuiComboItems(kSystemGroupLabels, 1);
+            ImGui::Combo("##systemNewGroup", &sNewSystemGroupKind, gItems.c_str());
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+##addSystemGroup"))
+        {
+            spawnNewGroup(*system);
+            pendingTreeResync = true;
+        }
+
+        if (pendingTreeResync)
+            extractFromSystem(*system);
     }
 
     if (changed)
