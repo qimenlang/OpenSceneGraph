@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <iostream>
 
 namespace spark_editor
@@ -318,6 +319,104 @@ void sanitizeEmitterTankFlow(float& flow, int& tankMin, int& tankMax)
     }
 }
 
+void extractColorGraphProperties(SPK::ColorGraphInterpolator* graph, InterpolatorNode& i)
+{
+    i.properties.push_back(makeInt("grInterpType", "Graph X type (0=life,1=age,2=param,3=vel)", static_cast<int>(graph->getType()), 1.0f, 0, 3));
+    i.properties.push_back(makeInt("grDriveParam", "Graph drive param (if type=param)", static_cast<int>(graph->getInterpolatorParam()), 1.0f, 0, 4));
+    i.properties.push_back(makeBool("grLoop", "Graph loop", graph->isLoopingEnabled()));
+    i.properties.push_back(makeFloat("grOffsetXVar", "Graph offset X variation", graph->getOffsetXVariation(), 0.01f, -100.0f, 100.0f));
+    i.properties.push_back(makeFloat("grScaleXVar", "Graph scale X variation", graph->getScaleXVariation(), 0.01f, 0.0f, 0.99f));
+    const unsigned int n = graph->getNbEntries();
+    for (unsigned int e = 0; e < n; ++e)
+    {
+        const std::string base = "grE" + std::to_string(e);
+        i.properties.push_back(makeFloat(base + "_x", "Graph pt " + std::to_string(e) + " X", graph->getX(e), 0.01f, -1.0e6f, 1.0e6f));
+        i.properties.push_back(makeColor4(base + "_y0", "Graph pt " + std::to_string(e) + " Y0", graph->getY0(e)));
+        i.properties.push_back(makeColor4(base + "_y1", "Graph pt " + std::to_string(e) + " Y1", graph->getY1(e)));
+    }
+}
+
+void applyColorGraphProperties(const std::vector<Property>& props, SPK::ColorGraphInterpolator* graph)
+{
+    int typeI = readInt(props, "grInterpType", static_cast<int>(graph->getType()));
+    typeI = std::clamp(typeI, 0, 3);
+    const SPK::InterpolationType itype = static_cast<SPK::InterpolationType>(typeI);
+    int paramI = readInt(props, "grDriveParam", static_cast<int>(graph->getInterpolatorParam()));
+    paramI = std::clamp(paramI, 0, 4);
+    const SPK::Param driveParam = static_cast<SPK::Param>(paramI);
+    if (itype == SPK::INTERPOLATOR_PARAM)
+        graph->setType(itype, driveParam);
+    else
+        graph->setType(itype);
+    graph->enableLooping(readBool(props, "grLoop", graph->isLoopingEnabled()));
+    graph->setOffsetXVariation(readFloat(props, "grOffsetXVar", graph->getOffsetXVariation()));
+    float scaleVar = readFloat(props, "grScaleXVar", graph->getScaleXVariation());
+    if (std::fabs(scaleVar) >= 1.0f)
+        scaleVar = std::copysign(0.99f, scaleVar >= 0.0f ? 1.0f : -1.0f);
+    graph->setScaleXVariation(scaleVar);
+
+    const unsigned int n = graph->getNbEntries();
+    for (unsigned int e = 0; e < n; ++e)
+    {
+        const std::string base = "grE" + std::to_string(e);
+        const Property* px = findPropertyConst(props, base + "_x");
+        if (!px || px->type != PropertyType::Float)
+            continue;
+        graph->setX(e, readFloat(props, base + "_x", graph->getX(e)));
+        graph->setY0(e, readColor4(props, base + "_y0", graph->getY0(e)));
+        graph->setY1(e, readColor4(props, base + "_y1", graph->getY1(e)));
+    }
+}
+
+void extractFloatGraphProperties(SPK::FloatGraphInterpolator* graph, InterpolatorNode& i)
+{
+    i.properties.push_back(makeInt("grInterpType", "Graph X type (0=life,1=age,2=param,3=vel)", static_cast<int>(graph->getType()), 1.0f, 0, 3));
+    i.properties.push_back(makeInt("grDriveParam", "Graph drive param (if type=param)", static_cast<int>(graph->getInterpolatorParam()), 1.0f, 0, 4));
+    i.properties.push_back(makeBool("grLoop", "Graph loop", graph->isLoopingEnabled()));
+    i.properties.push_back(makeFloat("grOffsetXVar", "Graph offset X variation", graph->getOffsetXVariation(), 0.01f, -100.0f, 100.0f));
+    i.properties.push_back(makeFloat("grScaleXVar", "Graph scale X variation", graph->getScaleXVariation(), 0.01f, 0.0f, 0.99f));
+    const unsigned int n = graph->getNbEntries();
+    for (unsigned int e = 0; e < n; ++e)
+    {
+        const std::string base = "grE" + std::to_string(e);
+        i.properties.push_back(makeFloat(base + "_x", "Graph pt " + std::to_string(e) + " X", graph->getX(e), 0.01f, -1.0e6f, 1.0e6f));
+        i.properties.push_back(makeFloat(base + "_y0", "Graph pt " + std::to_string(e) + " Y0", graph->getY0(e), 0.01f, -1.0e6f, 1.0e6f));
+        i.properties.push_back(makeFloat(base + "_y1", "Graph pt " + std::to_string(e) + " Y1", graph->getY1(e), 0.01f, -1.0e6f, 1.0e6f));
+    }
+}
+
+void applyFloatGraphProperties(const std::vector<Property>& props, SPK::FloatGraphInterpolator* graph)
+{
+    int typeI = readInt(props, "grInterpType", static_cast<int>(graph->getType()));
+    typeI = std::clamp(typeI, 0, 3);
+    const SPK::InterpolationType itype = static_cast<SPK::InterpolationType>(typeI);
+    int paramI = readInt(props, "grDriveParam", static_cast<int>(graph->getInterpolatorParam()));
+    paramI = std::clamp(paramI, 0, 4);
+    const SPK::Param driveParam = static_cast<SPK::Param>(paramI);
+    if (itype == SPK::INTERPOLATOR_PARAM)
+        graph->setType(itype, driveParam);
+    else
+        graph->setType(itype);
+    graph->enableLooping(readBool(props, "grLoop", graph->isLoopingEnabled()));
+    graph->setOffsetXVariation(readFloat(props, "grOffsetXVar", graph->getOffsetXVariation()));
+    float scaleVar = readFloat(props, "grScaleXVar", graph->getScaleXVariation());
+    if (std::fabs(scaleVar) >= 1.0f)
+        scaleVar = std::copysign(0.99f, scaleVar >= 0.0f ? 1.0f : -1.0f);
+    graph->setScaleXVariation(scaleVar);
+
+    const unsigned int n = graph->getNbEntries();
+    for (unsigned int e = 0; e < n; ++e)
+    {
+        const std::string base = "grE" + std::to_string(e);
+        const Property* px = findPropertyConst(props, base + "_x");
+        if (!px || px->type != PropertyType::Float)
+            continue;
+        graph->setX(e, readFloat(props, base + "_x", graph->getX(e)));
+        graph->setY0(e, readFloat(props, base + "_y0", graph->getY0(e)));
+        graph->setY1(e, readFloat(props, base + "_y1", graph->getY1(e)));
+    }
+}
+
 } // namespace
 
 void SparkEditorCore::setSourceFilePath(const std::string& sourcePath)
@@ -354,10 +453,16 @@ const char* SparkEditorCore::modifierTypeName(const SPK::Modifier* modifier) con
 
 const char* SparkEditorCore::interpolatorTypeName(const SPK::Interpolator<float>* interpolator) const
 {
-    if (dynamic_cast<const SPK::FloatRandomInitializer*>(interpolator))
-        return "FloatRandomInitializer";
+    if (dynamic_cast<const SPK::FloatGraphInterpolator*>(interpolator))
+        return "FloatGraphInterpolator";
+    if (dynamic_cast<const SPK::FloatRandomInterpolator*>(interpolator))
+        return "FloatRandomInterpolator";
     if (dynamic_cast<const SPK::FloatSimpleInterpolator*>(interpolator))
         return "FloatSimpleInterpolator";
+    if (dynamic_cast<const SPK::FloatRandomInitializer*>(interpolator))
+        return "FloatRandomInitializer";
+    if (dynamic_cast<const SPK::FloatDefaultInitializer*>(interpolator))
+        return "FloatDefaultInitializer";
     return "FloatInterpolator";
 }
 
@@ -514,13 +619,46 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             InterpolatorNode i;
             i.groupIndex = static_cast<int>(gi);
             i.param = -1;
-            i.typeName = "ColorInterpolator";
-            i.title = "ColorInterpolator";
-            if (SPK::ColorSimpleInterpolator* colorSimple = dynamic_cast<SPK::ColorSimpleInterpolator*>(colorRef.get()))
+            SPK::ColorInterpolator* colorInterp = colorRef.get();
+            if (SPK::ColorGraphInterpolator* colorGraph = dynamic_cast<SPK::ColorGraphInterpolator*>(colorInterp))
+            {
+                i.typeName = "ColorGraphInterpolator";
+                i.title = "ColorGraphInterpolator";
+                extractColorGraphProperties(colorGraph, i);
+            }
+            else if (SPK::ColorRandomInterpolator* colorRnd = dynamic_cast<SPK::ColorRandomInterpolator*>(colorInterp))
+            {
+                i.typeName = "ColorRandomInterpolator";
+                i.title = "ColorRandomInterpolator";
+                i.properties.push_back(makeColor4("minBirth", "Min birth", colorRnd->getMinBirthValue()));
+                i.properties.push_back(makeColor4("maxBirth", "Max birth", colorRnd->getMaxBirthValue()));
+                i.properties.push_back(makeColor4("minDeath", "Min death", colorRnd->getMinDeathValue()));
+                i.properties.push_back(makeColor4("maxDeath", "Max death", colorRnd->getMaxDeathValue()));
+            }
+            else if (SPK::ColorSimpleInterpolator* colorSimple = dynamic_cast<SPK::ColorSimpleInterpolator*>(colorInterp))
             {
                 i.typeName = "ColorSimpleInterpolator";
+                i.title = "ColorSimpleInterpolator";
                 i.properties.push_back(makeColor4("birth", "Birth", colorSimple->getBirthValue()));
                 i.properties.push_back(makeColor4("death", "Death", colorSimple->getDeathValue()));
+            }
+            else if (SPK::ColorRandomInitializer* colorRndInit = dynamic_cast<SPK::ColorRandomInitializer*>(colorInterp))
+            {
+                i.typeName = "ColorRandomInitializer";
+                i.title = "ColorRandomInitializer";
+                i.properties.push_back(makeColor4("min", "Min", colorRndInit->getMinValue()));
+                i.properties.push_back(makeColor4("max", "Max", colorRndInit->getMaxValue()));
+            }
+            else if (SPK::ColorDefaultInitializer* colorDef = dynamic_cast<SPK::ColorDefaultInitializer*>(colorInterp))
+            {
+                i.typeName = "ColorDefaultInitializer";
+                i.title = "ColorDefaultInitializer";
+                i.properties.push_back(makeColor4("value", "Value", colorDef->getDefaultValue()));
+            }
+            else
+            {
+                i.typeName = "ColorInterpolator";
+                i.title = "ColorInterpolator";
             }
             data_.interpolators.push_back(i);
         }
@@ -534,18 +672,30 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             InterpolatorNode i;
             i.groupIndex = static_cast<int>(gi);
             i.param = static_cast<int>(kParams[pi].first);
-            i.typeName = interpolatorTypeName(interpRef.get());
+            SPK::FloatInterpolator* fi = interpRef.get();
+            i.typeName = interpolatorTypeName(fi);
             i.title = std::string(kParams[pi].second) + "Interpolator";
-            if (SPK::FloatRandomInitializer* rnd = dynamic_cast<SPK::FloatRandomInitializer*>(interpRef.get()))
+            if (SPK::FloatGraphInterpolator* fg = dynamic_cast<SPK::FloatGraphInterpolator*>(fi))
+                extractFloatGraphProperties(fg, i);
+            else if (SPK::FloatRandomInterpolator* fri = dynamic_cast<SPK::FloatRandomInterpolator*>(fi))
             {
-                i.properties.push_back(makeFloat("min", "Min", rnd->getMinValue(), 0.01f, -1000.0f, 1000.0f));
-                i.properties.push_back(makeFloat("max", "Max", rnd->getMaxValue(), 0.01f, -1000.0f, 1000.0f));
+                i.properties.push_back(makeFloat("minBirth", "Min birth", fri->getMinBirthValue(), 0.01f, -1.0e6f, 1.0e6f));
+                i.properties.push_back(makeFloat("maxBirth", "Max birth", fri->getMaxBirthValue(), 0.01f, -1.0e6f, 1.0e6f));
+                i.properties.push_back(makeFloat("minDeath", "Min death", fri->getMinDeathValue(), 0.01f, -1.0e6f, 1.0e6f));
+                i.properties.push_back(makeFloat("maxDeath", "Max death", fri->getMaxDeathValue(), 0.01f, -1.0e6f, 1.0e6f));
             }
-            else if (SPK::FloatSimpleInterpolator* simp = dynamic_cast<SPK::FloatSimpleInterpolator*>(interpRef.get()))
+            else if (SPK::FloatSimpleInterpolator* simp = dynamic_cast<SPK::FloatSimpleInterpolator*>(fi))
             {
                 i.properties.push_back(makeFloat("birth", "Birth", simp->getBirthValue(), 0.01f, -1000.0f, 1000.0f));
                 i.properties.push_back(makeFloat("death", "Death", simp->getDeathValue(), 0.01f, -1000.0f, 1000.0f));
             }
+            else if (SPK::FloatRandomInitializer* rnd = dynamic_cast<SPK::FloatRandomInitializer*>(fi))
+            {
+                i.properties.push_back(makeFloat("min", "Min", rnd->getMinValue(), 0.01f, -1000.0f, 1000.0f));
+                i.properties.push_back(makeFloat("max", "Max", rnd->getMaxValue(), 0.01f, -1000.0f, 1000.0f));
+            }
+            else if (SPK::FloatDefaultInitializer* def = dynamic_cast<SPK::FloatDefaultInitializer*>(fi))
+                i.properties.push_back(makeFloat("value", "Value", def->getDefaultValue(), 0.01f, -1.0e6f, 1.0e6f));
             data_.interpolators.push_back(i);
         }
     }
@@ -704,19 +854,57 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         if (i.param == -1)
         {
             SPK::Ref<SPK::ColorInterpolator> colorRef = groupRef->getColorInterpolator();
-            if (SPK::ColorSimpleInterpolator* simpleColor = dynamic_cast<SPK::ColorSimpleInterpolator*>(colorRef.get()))
+            if (!colorRef)
+                continue;
+            SPK::ColorInterpolator* colorInterp = colorRef.get();
+            if (SPK::ColorGraphInterpolator* colorGraph = dynamic_cast<SPK::ColorGraphInterpolator*>(colorInterp))
+                applyColorGraphProperties(i.properties, colorGraph);
+            else if (SPK::ColorRandomInterpolator* colorRnd = dynamic_cast<SPK::ColorRandomInterpolator*>(colorInterp))
+            {
+                colorRnd->setValues(
+                    readColor4(i.properties, "minBirth", colorRnd->getMinBirthValue()),
+                    readColor4(i.properties, "maxBirth", colorRnd->getMaxBirthValue()),
+                    readColor4(i.properties, "minDeath", colorRnd->getMinDeathValue()),
+                    readColor4(i.properties, "maxDeath", colorRnd->getMaxDeathValue()));
+            }
+            else if (SPK::ColorSimpleInterpolator* simpleColor = dynamic_cast<SPK::ColorSimpleInterpolator*>(colorInterp))
             {
                 const SPK::Color birth = readColor4(i.properties, "birth", simpleColor->getBirthValue());
                 const SPK::Color death = readColor4(i.properties, "death", simpleColor->getDeathValue());
                 simpleColor->setValues(birth, death);
             }
+            else if (SPK::ColorRandomInitializer* colorRndInit = dynamic_cast<SPK::ColorRandomInitializer*>(colorInterp))
+            {
+                colorRndInit->setValues(
+                    readColor4(i.properties, "min", colorRndInit->getMinValue()),
+                    readColor4(i.properties, "max", colorRndInit->getMaxValue()));
+            }
+            else if (SPK::ColorDefaultInitializer* colorDef = dynamic_cast<SPK::ColorDefaultInitializer*>(colorInterp))
+                colorDef->setDefaultValue(readColor4(i.properties, "value", colorDef->getDefaultValue()));
             continue;
         }
 
         SPK::Ref<SPK::FloatInterpolator> interpRef = groupRef->getParamInterpolator(static_cast<SPK::Param>(i.param));
         if (!interpRef)
             continue;
-        if (SPK::FloatRandomInitializer* rnd = dynamic_cast<SPK::FloatRandomInitializer*>(interpRef.get()))
+        SPK::FloatInterpolator* fi = interpRef.get();
+        if (SPK::FloatGraphInterpolator* fg = dynamic_cast<SPK::FloatGraphInterpolator*>(fi))
+            applyFloatGraphProperties(i.properties, fg);
+        else if (SPK::FloatRandomInterpolator* fri = dynamic_cast<SPK::FloatRandomInterpolator*>(fi))
+        {
+            fri->setValues(
+                readFloat(i.properties, "minBirth", fri->getMinBirthValue()),
+                readFloat(i.properties, "maxBirth", fri->getMaxBirthValue()),
+                readFloat(i.properties, "minDeath", fri->getMinDeathValue()),
+                readFloat(i.properties, "maxDeath", fri->getMaxDeathValue()));
+        }
+        else if (SPK::FloatSimpleInterpolator* simp = dynamic_cast<SPK::FloatSimpleInterpolator*>(fi))
+        {
+            simp->setValues(
+                readFloat(i.properties, "birth", simp->getBirthValue()),
+                readFloat(i.properties, "death", simp->getDeathValue()));
+        }
+        else if (SPK::FloatRandomInitializer* rnd = dynamic_cast<SPK::FloatRandomInitializer*>(fi))
         {
             float minV = readFloat(i.properties, "min", rnd->getMinValue());
             float maxV = readFloat(i.properties, "max", rnd->getMaxValue());
@@ -724,12 +912,8 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
                 std::swap(minV, maxV);
             rnd->setValues(minV, maxV);
         }
-        else if (SPK::FloatSimpleInterpolator* simp = dynamic_cast<SPK::FloatSimpleInterpolator*>(interpRef.get()))
-        {
-            simp->setValues(
-                readFloat(i.properties, "birth", simp->getBirthValue()),
-                readFloat(i.properties, "death", simp->getDeathValue()));
-        }
+        else if (SPK::FloatDefaultInitializer* def = dynamic_cast<SPK::FloatDefaultInitializer*>(fi))
+            def->setDefaultValue(readFloat(i.properties, "value", def->getDefaultValue()));
     }
 
     for (size_t ri = 0; ri < data_.renderers.size(); ++ri)
