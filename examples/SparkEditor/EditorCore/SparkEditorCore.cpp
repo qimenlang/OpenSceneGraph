@@ -1170,10 +1170,24 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
 
     bool changed = false;
 
-    auto drawEmitterNode = [&changed, &system](EmitterNode& e) {
+    auto drawEmitterNode = [&changed, &system](EmitterNode& e) -> bool {
         const std::string emitterScope = "emitter." + std::to_string(e.groupIndex) + "." + std::to_string(e.emitterIndex);
-        if (!ImGui::TreeNode((e.title + "##" + emitterScope).c_str()))
-            return;
+        const bool opened = ImGui::TreeNode((e.title + "##" + emitterScope).c_str());
+        ImGui::SameLine();
+        if (ImGui::Button(("-##del." + emitterScope).c_str()))
+        {
+            if (e.groupIndex >= 0 && static_cast<size_t>(e.groupIndex) < system->getNbGroups())
+            {
+                SPK::Ref<SPK::Group> gr = system->getGroup(static_cast<size_t>(e.groupIndex));
+                if (gr && e.emitterIndex >= 0 && static_cast<size_t>(e.emitterIndex) < gr->getNbEmitters())
+                    gr->removeEmitter(gr->getEmitter(static_cast<size_t>(e.emitterIndex)));
+            }
+            if (opened)
+                ImGui::TreePop();
+            return true;
+        }
+        if (!opened)
+            return false;
 
         Property* flowProp = findProperty(e.properties, "flow");
         Property* tankMinProp = findProperty(e.properties, "tankMin");
@@ -1282,15 +1296,30 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
         }
 
         ImGui::TreePop();
+        return false;
     };
 
-    auto drawSimpleNode = [&changed](const std::string& treeId, const std::string& title, std::vector<Property>& properties) {
-        if (!ImGui::TreeNode((title + treeId).c_str()))
+    auto drawSimpleNode = [&changed](const std::string& treeId,
+                                     const std::string& title,
+                                     std::vector<Property>& properties,
+                                     const std::string& propertyScope,
+                                     const std::string& deleteButtonId,
+                                     bool& deleteClicked) {
+        const bool opened = ImGui::TreeNode((title + treeId).c_str());
+        ImGui::SameLine();
+        if (ImGui::Button(deleteButtonId.c_str()))
+        {
+            deleteClicked = true;
+            if (opened)
+                ImGui::TreePop();
+            return;
+        }
+        if (!opened)
             return;
         if (properties.empty())
             ImGui::TextUnformatted("No exposed editable properties for this type yet.");
         for (size_t p = 0; p < properties.size(); ++p)
-            changed = drawProperty(properties[p], title) || changed;
+            changed = drawProperty(properties[p], propertyScope) || changed;
         ImGui::TreePop();
     };
 
@@ -1310,13 +1339,23 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             addSt.floatInterpParam = std::clamp(addSt.floatInterpParam, 0, kNbParamSlots - 1);
             addSt.floatInterpKind = std::clamp(addSt.floatInterpKind, 0, kNbFloatInterpSpawns - 1);
 
-            if (!ImGui::TreeNode((g.title + "##group").c_str()))
-                continue;
-
             SPK::Ref<SPK::Group> liveGroupRef;
             if (g.groupIndex >= 0 && static_cast<size_t>(g.groupIndex) < system->getNbGroups())
                 liveGroupRef = system->getGroup(static_cast<size_t>(g.groupIndex));
             SPK::Group* liveGroupPtr = liveGroupRef.get();
+
+            const bool groupOpened = ImGui::TreeNode((g.title + "##group").c_str());
+            ImGui::SameLine();
+            if (ImGui::Button(("-##del.group." + std::to_string(g.groupIndex)).c_str()) && liveGroupRef)
+            {
+                system->removeGroup(liveGroupRef);
+                pendingTreeResync = true;
+                if (groupOpened)
+                    ImGui::TreePop();
+                continue;
+            }
+            if (!groupOpened)
+                continue;
 
             if (ImGui::TreeNode(("Group Properties##groupProps." + g.title).c_str()))
             {
@@ -1386,7 +1425,19 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     if (renderer.groupIndex != g.groupIndex)
                         continue;
                     hasRenderer = true;
-                    drawSimpleNode("##renderer", renderer.title, renderer.properties);
+                    bool deleteRenderer = false;
+                    drawSimpleNode("##renderer",
+                                   renderer.title,
+                                   renderer.properties,
+                                   "renderer." + std::to_string(renderer.groupIndex),
+                                   "-##del.renderer." + std::to_string(renderer.groupIndex),
+                                   deleteRenderer);
+                    if (deleteRenderer && liveGroupPtr)
+                    {
+                        liveGroupPtr->setRenderer(SPK_NULL_REF);
+                        pendingTreeResync = true;
+                        break;
+                    }
                 }
 
                 if (!hasRenderer)
@@ -1435,7 +1486,11 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     EmitterNode& e = data_.emitters[ei];
                     if (e.groupIndex != g.groupIndex)
                         continue;
-                    drawEmitterNode(e);
+                    if (drawEmitterNode(e))
+                    {
+                        pendingTreeResync = true;
+                        break;
+                    }
                 }
                 bool anyEmitter = false;
                 for (size_t ei = 0; ei < data_.emitters.size(); ++ei)
@@ -1478,7 +1533,21 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     ModifierNode& m = data_.modifiers[mi];
                     if (m.groupIndex != g.groupIndex)
                         continue;
-                    drawSimpleNode("##modifier", m.title, m.properties);
+                    bool deleteModifier = false;
+                    drawSimpleNode("##modifier",
+                                   m.title,
+                                   m.properties,
+                                   "modifier." + std::to_string(m.groupIndex) + "." + std::to_string(m.modifierIndex),
+                                   "-##del.modifier." + std::to_string(m.groupIndex) + "." + std::to_string(m.modifierIndex),
+                                   deleteModifier);
+                    if (deleteModifier && liveGroupPtr &&
+                        m.modifierIndex >= 0 &&
+                        static_cast<size_t>(m.modifierIndex) < liveGroupPtr->getNbModifiers())
+                    {
+                        liveGroupPtr->removeModifier(liveGroupPtr->getModifier(static_cast<size_t>(m.modifierIndex)));
+                        pendingTreeResync = true;
+                        break;
+                    }
                 }
                 bool anyMod = false;
                 for (size_t mi = 0; mi < data_.modifiers.size(); ++mi)
@@ -1536,7 +1605,22 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     InterpolatorNode& interp = data_.interpolators[ii];
                     if (interp.groupIndex != g.groupIndex)
                         continue;
-                    drawSimpleNode("##interp", interp.title, interp.properties);
+                    bool deleteInterp = false;
+                    drawSimpleNode("##interp",
+                                   interp.title,
+                                   interp.properties,
+                                   "interp." + std::to_string(interp.groupIndex) + "." + std::to_string(interp.param),
+                                   "-##del.interp." + std::to_string(interp.groupIndex) + "." + std::to_string(interp.param),
+                                   deleteInterp);
+                    if (deleteInterp && liveGroupPtr)
+                    {
+                        if (interp.param == -1)
+                            liveGroupPtr->setColorInterpolator(SPK_NULL_REF);
+                        else
+                            liveGroupPtr->setParamInterpolator(static_cast<SPK::Param>(interp.param), SPK_NULL_REF);
+                        pendingTreeResync = true;
+                        break;
+                    }
                 }
                 bool anyInterp = false;
                 for (size_t ii = 0; ii < data_.interpolators.size(); ++ii)
