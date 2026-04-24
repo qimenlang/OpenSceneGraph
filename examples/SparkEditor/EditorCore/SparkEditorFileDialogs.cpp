@@ -102,10 +102,10 @@ bool ShowOpenParticleFileDialog(std::string& outPath)
     return !outPath.empty();
 }
 
-bool ShowSaveParticleFileDialog(const std::string& suggestedStem, bool asXml, std::string& outPath)
+bool ShowSaveParticleFileDialog(const std::string& suggestedStem, std::string& outPath)
 {
     const std::string stem = SanitizeFileStem(suggestedStem);
-    const std::string defName = stem + (asXml ? ".xml" : ".spk");
+    const std::string defName = stem + ".spk";
     std::wstring wdef = Utf8ToWide(defName);
     std::vector<wchar_t> fileBuf(std::max<size_t>(wdef.size() + 1, static_cast<size_t>(MAX_PATH)), 0);
     if (!wdef.empty())
@@ -116,11 +116,11 @@ bool ShowSaveParticleFileDialog(const std::string& suggestedStem, bool asXml, st
     ofn.lpstrFile = fileBuf.data();
     ofn.nMaxFile = static_cast<DWORD>(fileBuf.size());
     static const wchar_t kFilter[] =
-        L"SPK (*.spk)\0*.spk\0"
-        L"XML (*.xml)\0*.xml\0\0";
+        L"SPK/XML base (*.spk;*.xml)\0*.spk;*.xml\0"
+        L"All (*.*)\0*.*\0\0";
     ofn.lpstrFilter = kFilter;
-    ofn.nFilterIndex = asXml ? 2u : 1u;
-    ofn.lpstrDefExt = asXml ? L"xml" : L"spk";
+    ofn.nFilterIndex = 1u;
+    ofn.lpstrDefExt = L"spk";
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_NOCHANGEDIR;
     if (!GetSaveFileNameW(&ofn))
     {
@@ -139,7 +139,7 @@ bool ShowOpenParticleFileDialog(std::string& outPath)
     return false;
 }
 
-bool ShowSaveParticleFileDialog(const std::string&, bool, std::string& outPath)
+bool ShowSaveParticleFileDialog(const std::string&, std::string& outPath)
 {
     (void)outPath;
     return false;

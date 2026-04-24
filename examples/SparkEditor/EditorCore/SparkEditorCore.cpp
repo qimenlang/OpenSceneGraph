@@ -1729,20 +1729,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             ImGui::TreePop();
         }
 
-        static const char* kSystemGroupLabels[] = {"Group"};
-        static int sNewSystemGroupKind = 0;
-        sNewSystemGroupKind = std::clamp(sNewSystemGroupKind, 0, 0);
         ImGui::TextUnformatted("New group");
-        ImGui::SameLine();
-        {
-            const float addBtnW = ImGui::CalcTextSize("+").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-            float comboW = ImGui::GetContentRegionAvail().x - addBtnW - ImGui::GetStyle().ItemSpacing.x;
-            if (comboW < 100.0f)
-                comboW = 100.0f;
-            ImGui::SetNextItemWidth(comboW);
-            const std::string gItems = makeImGuiComboItems(kSystemGroupLabels, 1);
-            ImGui::Combo("##systemNewGroup", &sNewSystemGroupKind, gItems.c_str());
-        }
         ImGui::SameLine();
         if (ImGui::Button("+##addSystemGroup"))
         {

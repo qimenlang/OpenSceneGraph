@@ -24,6 +24,7 @@
 
 #include <osgDB/ReadFile>
 #include <osgDB/FileUtils>
+#include <osgDB/FileNameUtils>
 
 #include <osgViewer/Viewer>
 #include <osg/FrameStamp>
@@ -576,38 +577,31 @@ public:
         if (_system)
         {
             ImGui::Text("System name: %s", _system->getName().c_str());
-            if (ImGui::Button("Save as .spk"))
+            if (ImGui::Button("Save"))
             {
                 std::string path;
-                if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), false, path))
+                if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), path))
                 {
-                    spark_editor::PrepareParticleSaveWithDemoTextures(_system, path);
-                    if (SPK::IO::Manager::get().save(path, _system))
+                    const std::string saveDir = osgDB::getFilePath(path);
+                    const std::string saveStem = osgDB::getNameLessExtension(osgDB::getSimpleFileName(path));
+                    const std::string spkPath = osgDB::concatPaths(saveDir, saveStem + ".spk");
+                    const std::string xmlPath = osgDB::concatPaths(saveDir, saveStem + ".xml");
+
+                    spark_editor::PrepareParticleSaveWithDemoTextures(_system, spkPath);
+                    const bool okSpk = SPK::IO::Manager::get().save(spkPath, _system);
+                    const bool okXml = SPK::IO::Manager::get().save(xmlPath, _system);
+                    if (okSpk && okXml)
                     {
-                        _editorCore.setSourceFilePath(path);
-                        std::cout << "Saved particle system: " << path << std::endl;
+                        _editorCore.setSourceFilePath(spkPath);
+                        std::cout << "Saved particle system: " << spkPath << " and " << xmlPath << std::endl;
                     }
                     else
-                        std::cout << "Save failed: " << path << std::endl;
+                        std::cout << "Save failed: " << spkPath << " (" << (okSpk ? "ok" : "failed")
+                                  << "), " << xmlPath << " (" << (okXml ? "ok" : "failed") << ')' << std::endl;
                 }
             }
             ImGui::SameLine();
-            if (ImGui::Button("Save as .xml"))
-            {
-                std::string path;
-                if (spark_editor::ShowSaveParticleFileDialog(_system->getName(), true, path))
-                {
-                    spark_editor::PrepareParticleSaveWithDemoTextures(_system, path);
-                    if (SPK::IO::Manager::get().save(path, _system))
-                    {
-                        _editorCore.setSourceFilePath(path);
-                        std::cout << "Saved particle system: " << path << std::endl;
-                    }
-                    else
-                        std::cout << "Save failed: " << path << std::endl;
-                }
-            }
-            if (ImGui::Button("Load .spk / .xml..."))
+            if (ImGui::Button("Load"))
             {
                 std::string path;
                 if (spark_editor::ShowOpenParticleFileDialog(path))
