@@ -73,6 +73,31 @@ Property makeColor4(const std::string& key, const std::string& label, const SPK:
     return p;
 }
 
+/** Rounds log10(capacity) for editor slider; SPK::Group default 100 → 2 (10²). Clamped 0..9 (10⁹). */
+int capacityOrderFromSize(size_t capacity)
+{
+    const double c = (std::max)(1.0, static_cast<double>(capacity));
+    const int order = static_cast<int>(std::lround(std::log10(c)));
+    return std::clamp(order, 0, 9);
+}
+
+size_t capacityFromOrder(int order)
+{
+    static const size_t kPow10[10] = {
+        1u, 10u, 100u, 1000u, 10000u, 100000u, 1000000u, 10000000u, 100000000u, 1000000000u};
+    return kPow10[static_cast<size_t>(std::clamp(order, 0, 9))];
+}
+
+/** Smallest n with 10ⁿ ≥ nbParticles (for slider lower bound when live count exceeds chosen order). */
+int minCapacityOrderForParticles(size_t nbParticles)
+{
+    if (nbParticles <= 1u)
+        return 0;
+    const double n = static_cast<double>(nbParticles);
+    const int order = static_cast<int>(std::ceil(std::log10(n)));
+    return std::clamp(order, 0, 9);
+}
+
 const Property* findPropertyConst(const std::vector<Property>& props, const std::string& key)
 {
     for (std::vector<Property>::const_iterator it = props.begin(); it != props.end(); ++it)
@@ -706,7 +731,8 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
         GroupNode groupNode;
         groupNode.groupIndex = static_cast<int>(gi);
         groupNode.title = "Group " + std::to_string(gi);
-        groupNode.properties.push_back(makeInt("capacity", "Capacity", static_cast<int>(group->getCapacity()), 1.0f, 1, 1000000));
+        groupNode.properties.push_back(
+            makeInt("capacityOrder", "Capacity (10^n)", capacityOrderFromSize(group->getCapacity()), 1.0f, 0, 9));
         groupNode.properties.push_back(makeFloat("lifeMin", "Life Min", group->getMinLifeTime(), 0.01f, 0.0f, 120.0f));
         groupNode.properties.push_back(makeFloat("lifeMax", "Life Max", group->getMaxLifeTime(), 0.01f, 0.0f, 120.0f));
         groupNode.properties.push_back(makeFloat("radiusGraphical", "Graphical Radius", group->getGraphicalRadius(), 0.01f, 0.0f, 100.0f));
@@ -942,14 +968,14 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         const float lifeMax = readFloat(g.properties, "lifeMax", group->getMaxLifeTime());
         const float minLife = lifeMin < lifeMax ? lifeMin : lifeMax;
         const float maxLife = lifeMin < lifeMax ? lifeMax : lifeMin;
-        int capacity = readInt(g.properties, "capacity", static_cast<int>(group->getCapacity()));
-        if (capacity < 1)
-            capacity = 1;
+        int order = readInt(g.properties, "capacityOrder", capacityOrderFromSize(group->getCapacity()));
+        order = std::clamp(order, 0, 9);
         const int minCapacity = (std::max)(1, static_cast<int>(group->getNbParticles()));
-        if (capacity < minCapacity)
-            capacity = minCapacity;
-        if (static_cast<size_t>(capacity) != group->getCapacity())
-            group->reallocate(static_cast<size_t>(capacity));
+        size_t capacity = capacityFromOrder(order);
+        if (capacity < static_cast<size_t>(minCapacity))
+            capacity = static_cast<size_t>(minCapacity);
+        if (capacity != group->getCapacity())
+            group->reallocate(capacity);
         group->setLifeTime(minLife, maxLife);
         group->setImmortal(readBool(g.properties, "immortal", group->isImmortal()));
         group->setStill(readBool(g.properties, "still", group->isStill()));
@@ -1369,27 +1395,36 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     const std::string& key = g.properties[p].key;
                     if (key == "immortal" || key == "still" || key == "sorting")
                         continue;
-                    if (key == "capacity")
+                    if (key == "capacityOrder")
                     {
                         Property& capProp = g.properties[p];
                         if (capProp.type == PropertyType::Int)
                         {
-                            int v = std::get<int>(capProp.value);
-                            const int minCap = liveGroupPtr ? (std::max)(1, static_cast<int>(liveGroupPtr->getNbParticles())) : 1;
-                            if (v < minCap)
+                            int v = std::clamp(std::get<int>(capProp.value), 0, 9);
+                            if (v != std::get<int>(capProp.value))
                             {
-                                v = minCap;
+                                capProp.value = v;
+                                changed = true;
+                            }
+                            const int minOrder = 0;
+                            if (v < minOrder)
+                            {
+                                v = minOrder;
                                 capProp.value = v;
                                 changed = true;
                             }
                             const std::string label = capProp.label + "##" + g.title + "." + capProp.key;
-                            if (ImGui::DragInt(label.c_str(), &v, capProp.speed, minCap, static_cast<int>(capProp.maxValue)))
+                            ImGui::PushItemWidth(ImGui::GetFontSize() * 18.0f);
+                            if (ImGui::SliderInt(label.c_str(), &v, minOrder, 9, "n=%d"))
                             {
-                                if (v < minCap)
-                                    v = minCap;
+                                v = std::clamp(v, minOrder, 9);
                                 capProp.value = v;
                                 changed = true;
                             }
+                            ImGui::PopItemWidth();
+                            const size_t slots = capacityFromOrder(std::get<int>(capProp.value));
+                            ImGui::SameLine();
+                            ImGui::TextDisabled("= %zu", slots);
                         }
                         continue;
                     }
