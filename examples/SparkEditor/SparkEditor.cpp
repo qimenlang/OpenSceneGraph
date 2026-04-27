@@ -719,6 +719,10 @@ public:
             _system->updateParticles(deltaTime);
         }
 
+        //防止固定管线光照和颜色材质影响SPARK渲染
+        glDisable(GL_LIGHTING);
+        glDisable(GL_COLOR_MATERIAL);
+        
         SPK::GL::GLRenderer::saveGLStates();
         _system->renderParticles();
         SPK::GL::GLRenderer::restoreGLStates();
