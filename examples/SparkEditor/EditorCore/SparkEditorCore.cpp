@@ -188,6 +188,44 @@ void zoneRuntimeTypeName(SPK::Zone* z, std::string& out)
         out = "Zone";
 }
 
+static const char* kZoneTypeLabels[] = {
+    "Point",
+    "Sphere",
+    "Box",
+    "Cylinder",
+    "Plane",
+    "Ring"};
+static const int kNbZoneTypes = static_cast<int>(sizeof(kZoneTypeLabels) / sizeof(kZoneTypeLabels[0]));
+
+int zoneTypeNameToIndex(const std::string& typeName)
+{
+    for (int i = 0; i < kNbZoneTypes; ++i)
+        if (typeName == kZoneTypeLabels[i])
+            return i;
+    return 0;
+}
+
+SPK::Ref<SPK::Zone> createZoneByIndex(int index)
+{
+    switch (std::clamp(index, 0, kNbZoneTypes - 1))
+    {
+    case 0:
+        return SPK::Point::create();
+    case 1:
+        return SPK::Sphere::create();
+    case 2:
+        return SPK::Box::create();
+    case 3:
+        return SPK::Cylinder::create();
+    case 4:
+        return SPK::Plane::create();
+    case 5:
+        return SPK::Ring::create();
+    default:
+        return SPK::Point::create();
+    }
+}
+
 /** Fills properties to match each zone type's spark_description (plus Zone::position from SPK_Zone.h). */
 void extractEmitterZoneProperties(SPK::Zone* z, std::string& typeName, std::vector<Property>& out)
 {
@@ -639,8 +677,8 @@ void appendRendererTypeProperties(SPK::Renderer* renderer, std::vector<Property>
 
     if (SPK::GL::GLQuadRenderer* q = dynamic_cast<SPK::GL::GLQuadRenderer*>(renderer))
     {
-        out.push_back(makeInt("atlasDimX", "Atlas X", static_cast<int>(q->getAtlasDimensionX()), 0.1f, 1, 16));
-        out.push_back(makeInt("atlasDimY", "Atlas Y", static_cast<int>(q->getAtlasDimensionY()), 0.1f, 1, 16));
+        out.push_back(makeInt("atlasDimX", "Atlas X", static_cast<int>(q->getAtlasDimensionX()), 0.1f, 1, 8));
+        out.push_back(makeInt("atlasDimY", "Atlas Y", static_cast<int>(q->getAtlasDimensionY()), 0.1f, 1, 8));
         out.push_back(makeFloat("quadScaleX", "Quad Scale X", q->getScaleX(), 0.01f, 0.01f, 10.0f));
         out.push_back(makeFloat("quadScaleY", "Quad Scale Y", q->getScaleY(), 0.01f, 0.01f, 10.0f));
     }
@@ -1404,24 +1442,44 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
         const std::string zoneTreeLabel = "Zone (" + e.zoneTypeName + ")##emitterZone." + std::to_string(e.groupIndex) + "." + std::to_string(e.emitterIndex);
         if (ImGui::TreeNode(zoneTreeLabel.c_str()))
         {
+            SPK::Emitter* liveEmitter = NULL;
             if (e.zoneTypeName.empty())
                 ImGui::TextDisabled("(no zone)");
-            else
+
+            SPK::Zone* liveZone = NULL;
+            if (e.groupIndex >= 0 && static_cast<size_t>(e.groupIndex) < system->getNbGroups())
             {
-                SPK::Zone* liveZone = NULL;
-                if (e.groupIndex >= 0 && static_cast<size_t>(e.groupIndex) < system->getNbGroups())
+                SPK::Ref<SPK::Group> gr = system->getGroup(static_cast<size_t>(e.groupIndex));
+                if (gr && e.emitterIndex >= 0 && static_cast<size_t>(e.emitterIndex) < gr->getNbEmitters())
                 {
-                    SPK::Ref<SPK::Group> gr = system->getGroup(static_cast<size_t>(e.groupIndex));
-                    if (gr && e.emitterIndex >= 0 && static_cast<size_t>(e.emitterIndex) < gr->getNbEmitters())
+                    liveEmitter = gr->getEmitter(static_cast<size_t>(e.emitterIndex)).get();
+                    if (liveEmitter)
+                        liveZone = liveEmitter->getZone().get();
+                }
+            }
+
+            int zoneTypeIdx = zoneTypeNameToIndex(e.zoneTypeName);
+            const std::string zoneTypeItems = makeImGuiComboItems(kZoneTypeLabels, kNbZoneTypes);
+            if (ImGui::Combo(("Zone Type##" + emitterScope + ".zoneType").c_str(), &zoneTypeIdx, zoneTypeItems.c_str()))
+            {
+                if (liveEmitter)
+                {
+                    SPK::Ref<SPK::Zone> newZone = createZoneByIndex(zoneTypeIdx);
+                    if (newZone)
                     {
-                        SPK::Emitter* em = gr->getEmitter(static_cast<size_t>(e.emitterIndex)).get();
-                        if (em)
-                            liveZone = em->getZone().get();
+                        liveEmitter->setZone(newZone, liveEmitter->isFullZone());
+                        liveZone = newZone.get();
+                        extractEmitterZoneProperties(liveZone, e.zoneTypeName, e.zoneProperties);
+                        changed = true;
                     }
                 }
-                if (liveZone && liveZone->isShared())
-                    ImGui::TextDisabled("(shared zone — edits affect all references)");
+            }
 
+            if (liveZone && liveZone->isShared())
+                ImGui::TextDisabled("(shared zone — edits affect all references)");
+
+            if (!e.zoneTypeName.empty())
+            {
                 const std::string zoneScope = emitterScope + ".zone";
                 for (size_t zi = 0; zi < e.zoneProperties.size(); ++zi)
                     changed = drawProperty(e.zoneProperties[zi], zoneScope) || changed;
@@ -1510,7 +1568,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                 ImGui::TextUnformatted("Texture");
                 const GLuint texId = quad->getTexture();
                 const std::string buttonId = "##quadTexturePicker." + propertyScope;
-                bool pickTexture = false;
+                bool pickTexture = false; 
                 if (texId != 0u)
                 {
                     if (ImGui::ImageButton(buttonId.c_str(), static_cast<ImTextureID>(static_cast<uintptr_t>(texId)), previewSize))
@@ -1533,6 +1591,11 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                             quad->setTexturingMode(SPK::TEXTURE_MODE_2D);
                             quad->setTexture(newTex);
                             changed = true;
+                            std::cout<<"Load Texture Success: "<<imagePath<<std::endl;
+                        }
+                        else
+                        {
+                            std::cout<<"Load Texture Failed: "<<imagePath<<std::endl;
                         }
                     }
                 }
