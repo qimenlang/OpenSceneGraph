@@ -1,6 +1,7 @@
 ﻿#include "SparkEditorCore.h"
 
 #include "Rendering/OpenGL/SPK_GL_LineRenderer.h"
+#include "Rendering/OpenGL/SPK_GL_LineTrailRenderer.h"
 #include "Rendering/OpenGL/SPK_GL_PointRenderer.h"
 #include "Rendering/OpenGL/SPK_GL_QuadRenderer.h"
 
@@ -458,6 +459,33 @@ std::string makeImGuiComboItems(const char* const* labels, int n)
     return s;
 }
 
+static const char* kBlendModeLabels[] = {
+    "BLEND_MODE_NONE",
+    "BLEND_MODE_ALPHA",
+    "BLEND_MODE_ADD"};
+static const int kNbBlendModes = static_cast<int>(sizeof(kBlendModeLabels) / sizeof(kBlendModeLabels[0]));
+
+int detectBlendModeIndex(const SPK::GL::GLRenderer* renderer)
+{
+    if (!renderer)
+        return 0;
+
+    if (!renderer->isBlendingEnabled())
+        return 0;
+
+    const GLuint src = renderer->getSrcBlendingFunction();
+    const GLuint dst = renderer->getDestBlendingFunction();
+
+    if (src == GL_SRC_ALPHA && dst == GL_ONE)
+        return 2;
+    if (src == GL_SRC_ALPHA && dst == GL_ONE_MINUS_SRC_ALPHA)
+        return 1;
+    if (src == GL_ONE && dst == GL_ZERO)
+        return 0;
+
+    return 0;
+}
+
 SPK::Ref<SPK::ColorInterpolator> spawnColorInterpolator(int kind)
 {
     switch (kind)
@@ -567,6 +595,8 @@ SPK::Ref<SPK::Renderer> spawnRenderer(int kind)
         return SPK::GL::GLPointRenderer::create(3.0f);
     case 2:
         return SPK::GL::GLLineRenderer::create(0.15f, 2.0f);
+    case 3:
+        return SPK::GL::GLLineTrailRenderer::create(8u, 1.0f, 1.0f);
     default:
         return SPK::GL::GLQuadRenderer::create(1.0f, 1.0f);
     }
@@ -580,6 +610,8 @@ const char* rendererTypeName(const SPK::Renderer* renderer)
         return "GLPointRenderer";
     if (dynamic_cast<const SPK::GL::GLLineRenderer*>(renderer))
         return "GLLineRenderer";
+    if (dynamic_cast<const SPK::GL::GLLineTrailRenderer*>(renderer))
+        return "GLLineTrailRenderer";
     return "Renderer";
 }
 
@@ -591,7 +623,82 @@ int rendererSpawnKind(const SPK::Renderer* renderer)
         return 1;
     if (dynamic_cast<const SPK::GL::GLLineRenderer*>(renderer))
         return 2;
+    if (dynamic_cast<const SPK::GL::GLLineTrailRenderer*>(renderer))
+        return 3;
     return 0;
+}
+
+/** Type-specific renderer fields (spark_description on GL*Renderer). Pairs use split keys for Property. */
+void appendRendererTypeProperties(SPK::Renderer* renderer, std::vector<Property>& out)
+{
+    if (SPK::GL::GLRenderer* glRenderer = dynamic_cast<SPK::GL::GLRenderer*>(renderer))
+        out.push_back(makeInt("blendMode", "Blend Mode", detectBlendModeIndex(glRenderer), 1.0f, 0, kNbBlendModes - 1));
+
+    if (SPK::GL::GLQuadRenderer* q = dynamic_cast<SPK::GL::GLQuadRenderer*>(renderer))
+    {
+        out.push_back(makeInt("atlasDimX", "Atlas X", static_cast<int>(q->getAtlasDimensionX()), 0.1f, 1, 16));
+        out.push_back(makeInt("atlasDimY", "Atlas Y", static_cast<int>(q->getAtlasDimensionY()), 0.1f, 1, 16));
+        out.push_back(makeFloat("quadScaleX", "Quad Scale X", q->getScaleX(), 0.01f, 0.01f, 10.0f));
+        out.push_back(makeFloat("quadScaleY", "Quad Scale Y", q->getScaleY(), 0.01f, 0.01f, 10.0f));
+    }
+    else if (SPK::GL::GLPointRenderer* pt = dynamic_cast<SPK::GL::GLPointRenderer*>(renderer))
+    {
+        out.push_back(makeInt("pointType", "Point Type", pt->getPointTypeInt(), 1.0f, 0, 2));
+        out.push_back(makeBool("worldSizeEnabled", "World Size", pt->isWorldSizeEnabled()));
+        out.push_back(makeFloat("screenSize", "Screen Size", pt->getScreenSize(), 0.05f, 0.0f, 256.0f));
+        out.push_back(makeFloat("worldScale", "World Scale", pt->getWorldScale(), 0.01f, 0.0f, 100.0f));
+    }
+    else if (SPK::GL::GLLineTrailRenderer* tr = dynamic_cast<SPK::GL::GLLineTrailRenderer*>(renderer))
+    {
+        out.push_back(makeInt("trailNbSamples", "Trail Samples", static_cast<int>(tr->getTrailNbSamples()), 1.0f, 2, 256));
+        out.push_back(makeFloat("duration", "Duration", tr->getDuration(), 0.01f, 0.001f, 60.0f));
+        out.push_back(makeFloat("trailWidth", "Width", tr->getWidth(), 0.05f, 0.0f, 64.0f));
+    }
+    else if (SPK::GL::GLLineRenderer* ln = dynamic_cast<SPK::GL::GLLineRenderer*>(renderer))
+    {
+        out.push_back(makeFloat("lineLength", "Length", ln->getLength(), 0.01f, 0.0f, 100.0f));
+        out.push_back(makeFloat("lineWidth", "Width", ln->getWidth(), 0.05f, 0.0f, 64.0f));
+    }
+}
+
+void applyRendererTypeProperties(SPK::Renderer* renderer, const std::vector<Property>& props)
+{
+    int blendMode = readInt(props, "blendMode", 1);
+    blendMode = std::clamp(blendMode, 0, kNbBlendModes - 1);
+    renderer->setBlendMode(static_cast<SPK::BlendMode>(blendMode));
+
+    if (SPK::GL::GLQuadRenderer* q = dynamic_cast<SPK::GL::GLQuadRenderer*>(renderer))
+    {
+        int ax = readInt(props, "atlasDimX", static_cast<int>(q->getAtlasDimensionX()));
+        int ay = readInt(props, "atlasDimY", static_cast<int>(q->getAtlasDimensionY()));
+        ax = (std::max)(1, ax);
+        ay = (std::max)(1, ay);
+        q->setAtlasDimensions(static_cast<unsigned int>(ax), static_cast<unsigned int>(ay));
+        q->setScale(
+            readFloat(props, "quadScaleX", q->getScaleX()),
+            readFloat(props, "quadScaleY", q->getScaleY()));
+    }
+    else if (SPK::GL::GLPointRenderer* pt = dynamic_cast<SPK::GL::GLPointRenderer*>(renderer))
+    {
+        const int ptType = std::clamp(readInt(props, "pointType", pt->getPointTypeInt()), 0, 2);
+        pt->setPointTypeInt(ptType);
+        pt->setWorldSizeEnabled(readBool(props, "worldSizeEnabled", pt->isWorldSizeEnabled()));
+        pt->setScreenSize(readFloat(props, "screenSize", pt->getScreenSize()));
+        pt->setWorldScale(readFloat(props, "worldScale", pt->getWorldScale()));
+    }
+    else if (SPK::GL::GLLineTrailRenderer* tr = dynamic_cast<SPK::GL::GLLineTrailRenderer*>(renderer))
+    {
+        int samples = readInt(props, "trailNbSamples", static_cast<int>(tr->getTrailNbSamples()));
+        samples = (std::max)(1, samples);
+        tr->setTrailNbSamples(static_cast<unsigned int>(samples));
+        tr->setDuration(readFloat(props, "duration", tr->getDuration()));
+        tr->setWidth(readFloat(props, "trailWidth", tr->getWidth()));
+      }
+    else if (SPK::GL::GLLineRenderer* ln = dynamic_cast<SPK::GL::GLLineRenderer*>(renderer))
+    {
+        ln->setLength(readFloat(props, "lineLength", ln->getLength()));
+        ln->setWidth(readFloat(props, "lineWidth", ln->getWidth()));
+    }
 }
 
 void spawnNewGroup(SPK::System& system)
@@ -629,7 +736,8 @@ static const int kNbEmitterSpawns = static_cast<int>(sizeof(kEmitterSpawnLabels)
 static const char* kRendererSpawnLabels[] = {
     "GLQuadRenderer",
     "GLPointRenderer",
-    "GLLineRenderer"};
+    "GLLineRenderer",
+    "GLLineTrailRenderer"};
 static const int kNbRendererSpawns = static_cast<int>(sizeof(kRendererSpawnLabels) / sizeof(kRendererSpawnLabels[0]));
 
 static const char* kColorInterpSpawnLabels[] = {
@@ -751,7 +859,7 @@ bool SparkEditorCore::extractFromSystem(SPK::System& system)
             r.typeName = rendererTypeName(renderer);
             r.title = r.typeName;
             r.properties.push_back(makeBool("active", "Active", renderer->isActive()));
-            r.properties.push_back(makeInt("renderingOptions", "Rendering Options", static_cast<int>(renderer->getRenderingOptions()), 1.0f, 0, 65535));
+            appendRendererTypeProperties(renderer, r.properties);
 
             data_.renderers.push_back(r);
         }
@@ -1179,10 +1287,7 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
         SPK::Renderer* renderer = rendererRef.get();
 
         renderer->setActive(readBool(r.properties, "active", renderer->isActive()));
-        int renderingOptions = readInt(r.properties, "renderingOptions", static_cast<int>(renderer->getRenderingOptions()));
-        if (renderingOptions < 0)
-            renderingOptions = 0;
-        renderer->setRenderingOptions(static_cast<unsigned int>(renderingOptions));
+        applyRendererTypeProperties(renderer, r.properties);
     }
 }
 
@@ -1349,6 +1454,51 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
         ImGui::TreePop();
     };
 
+    auto drawRendererNode = [&changed](RendererNode& renderer,
+                                       const std::string& treeId,
+                                       const std::string& propertyScope,
+                                       const std::string& deleteButtonId,
+                                       bool& deleteClicked) {
+        const bool opened = ImGui::TreeNode((renderer.title + treeId).c_str());
+        ImGui::SameLine();
+        if (ImGui::Button(deleteButtonId.c_str()))
+        {
+            deleteClicked = true;
+            if (opened)
+                ImGui::TreePop();
+            return;
+        }
+        if (!opened)
+            return;
+
+        if (renderer.properties.empty())
+            ImGui::TextUnformatted("No exposed editable properties for this type yet.");
+
+        Property* blendModeProp = findProperty(renderer.properties, "blendMode");
+        const std::string blendItems = makeImGuiComboItems(kBlendModeLabels, kNbBlendModes);
+
+        for (size_t p = 0; p < renderer.properties.size(); ++p)
+        {
+            Property& prop = renderer.properties[p];
+            if (prop.key == "blendMode" && prop.type == PropertyType::Int)
+                continue;
+            changed = drawProperty(prop, propertyScope) || changed;
+        }
+
+        if (blendModeProp && blendModeProp->type == PropertyType::Int)
+        {
+            int modeIndex = std::clamp(std::get<int>(blendModeProp->value), 0, kNbBlendModes - 1);
+            const std::string modeLabel = blendModeProp->label + "##" + propertyScope + "." + blendModeProp->key;
+            if (ImGui::Combo(modeLabel.c_str(), &modeIndex, blendItems.c_str()))
+            {
+                blendModeProp->value = modeIndex;
+                changed = true;
+            }
+        }
+
+        ImGui::TreePop();
+    };
+
     if (ImGui::CollapsingHeader("Particle System Tree", ImGuiTreeNodeFlags_DefaultOpen))
     {
         groupAddUi_.resize(data_.groups.size());
@@ -1461,12 +1611,11 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                         continue;
                     hasRenderer = true;
                     bool deleteRenderer = false;
-                    drawSimpleNode("##renderer",
-                                   renderer.title,
-                                   renderer.properties,
-                                   "renderer." + std::to_string(renderer.groupIndex),
-                                   "-##del.renderer." + std::to_string(renderer.groupIndex),
-                                   deleteRenderer);
+                    drawRendererNode(renderer,
+                                     "##renderer",
+                                     "renderer." + std::to_string(renderer.groupIndex),
+                                     "-##del.renderer." + std::to_string(renderer.groupIndex),
+                                     deleteRenderer);
                     if (deleteRenderer && liveGroupPtr)
                     {
                         liveGroupPtr->setRenderer(SPK_NULL_REF);
