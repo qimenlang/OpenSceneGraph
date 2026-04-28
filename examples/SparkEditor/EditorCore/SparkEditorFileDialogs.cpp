@@ -102,6 +102,33 @@ bool ShowOpenParticleFileDialog(std::string& outPath)
     return !outPath.empty();
 }
 
+bool ShowOpenImageFileDialog(std::string& outPath)
+{
+    wchar_t buf[MAX_PATH] = L"";
+    OPENFILENAMEW ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.lpstrFile = buf;
+    ofn.nMaxFile = MAX_PATH;
+    static const wchar_t kFilter[] =
+        L"Image files (*.png;*.jpg;*.jpeg;*.bmp;*.tga;*.dds)\0*.png;*.jpg;*.jpeg;*.bmp;*.tga;*.dds\0"
+        L"PNG (*.png)\0*.png\0"
+        L"JPEG (*.jpg;*.jpeg)\0*.jpg;*.jpeg\0"
+        L"BMP (*.bmp)\0*.bmp\0"
+        L"TGA (*.tga)\0*.tga\0"
+        L"DDS (*.dds)\0*.dds\0"
+        L"All (*.*)\0*.*\0\0";
+    ofn.lpstrFilter = kFilter;
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+    if (!GetOpenFileNameW(&ofn))
+    {
+        outPath.clear();
+        return false;
+    }
+    outPath = WideToUtf8(buf);
+    return !outPath.empty();
+}
+
 bool ShowSaveParticleFileDialog(const std::string& suggestedStem, std::string& outPath)
 {
     const std::string stem = SanitizeFileStem(suggestedStem);
@@ -134,6 +161,12 @@ bool ShowSaveParticleFileDialog(const std::string& suggestedStem, std::string& o
 #else
 
 bool ShowOpenParticleFileDialog(std::string& outPath)
+{
+    (void)outPath;
+    return false;
+}
+
+bool ShowOpenImageFileDialog(std::string& outPath)
 {
     (void)outPath;
     return false;

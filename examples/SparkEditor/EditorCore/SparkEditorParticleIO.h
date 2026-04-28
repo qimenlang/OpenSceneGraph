@@ -8,6 +8,7 @@ namespace spark_editor
 
 /** Register a GL texture id as coming from SparkRes/<fileName> (used when saving). */
 void RegisterDemoTextureFile(unsigned int textureId, const std::string& sparkResFileName);
+bool LoadTextureForEditor(const std::string& imagePath, unsigned int& outTextureId);
 
 /**
  * Before IO::Manager::save: sets each GL quad/point renderer's SPKObject name to the texture image path

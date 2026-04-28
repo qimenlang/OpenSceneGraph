@@ -104,6 +104,25 @@ void RegisterDemoTextureFile(unsigned int textureId, const std::string& sparkRes
         gTextureIdToBasename[textureId] = base;
 }
 
+bool LoadTextureForEditor(const std::string& imagePath, unsigned int& outTextureId)
+{
+    outTextureId = 0u;
+    if (imagePath.empty())
+        return false;
+
+    osg::ref_ptr<osg::Image> image = osgDB::readRefImageFile(imagePath);
+    if (!image.valid() || !image->data())
+        return false;
+
+    const GLuint tex = CreateTextureFromOsgImage(image.get());
+    if (tex == 0u)
+        return false;
+
+    RegisterDemoTextureFile(static_cast<unsigned int>(tex), osgDB::getSimpleFileName(imagePath));
+    outTextureId = static_cast<unsigned int>(tex);
+    return true;
+}
+
 bool PrepareParticleSaveWithDemoTextures(const SPK::Ref<SPK::System>& system, const std::string& savePath)
 {
     if (!system)

@@ -1,4 +1,6 @@
 ﻿#include "SparkEditorCore.h"
+#include "SparkEditorFileDialogs.h"
+#include "SparkEditorParticleIO.h"
 
 #include "Rendering/OpenGL/SPK_GL_LineRenderer.h"
 #include "Rendering/OpenGL/SPK_GL_LineTrailRenderer.h"
@@ -9,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 
 namespace spark_editor
@@ -1455,6 +1458,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
     };
 
     auto drawRendererNode = [&changed](RendererNode& renderer,
+                                       SPK::Group* liveGroup,
                                        const std::string& treeId,
                                        const std::string& propertyScope,
                                        const std::string& deleteButtonId,
@@ -1493,6 +1497,45 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             {
                 blendModeProp->value = modeIndex;
                 changed = true;
+            }
+        }
+
+        if (liveGroup)
+        {
+            SPK::Renderer* liveRenderer = liveGroup->getRenderer().get();
+            if (SPK::GL::GLQuadRenderer* quad = dynamic_cast<SPK::GL::GLQuadRenderer*>(liveRenderer))
+            {
+                const ImVec2 previewSize(120.0f, 120.0f);
+                ImGui::Separator();
+                ImGui::TextUnformatted("Texture");
+                const GLuint texId = quad->getTexture();
+                const std::string buttonId = "##quadTexturePicker." + propertyScope;
+                bool pickTexture = false;
+                if (texId != 0u)
+                {
+                    if (ImGui::ImageButton(buttonId.c_str(), static_cast<ImTextureID>(static_cast<uintptr_t>(texId)), previewSize))
+                        pickTexture = true;
+                }
+                else
+                {
+                    if (ImGui::Button(("Load texture" + buttonId).c_str(), previewSize))
+                        pickTexture = true;
+                }
+
+                if (pickTexture)
+                {
+                    std::string imagePath;
+                    if (ShowOpenImageFileDialog(imagePath))
+                    {
+                        unsigned int newTex = 0u;
+                        if (LoadTextureForEditor(imagePath, newTex) && newTex != 0u)
+                        {
+                            quad->setTexturingMode(SPK::TEXTURE_MODE_2D);
+                            quad->setTexture(newTex);
+                            changed = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -1612,6 +1655,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     hasRenderer = true;
                     bool deleteRenderer = false;
                     drawRendererNode(renderer,
+                                     liveGroupPtr,
                                      "##renderer",
                                      "renderer." + std::to_string(renderer.groupIndex),
                                      "-##del.renderer." + std::to_string(renderer.groupIndex),
