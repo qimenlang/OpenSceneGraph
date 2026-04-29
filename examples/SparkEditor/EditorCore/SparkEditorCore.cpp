@@ -363,6 +363,272 @@ bool drawProperty(Property& prop, const std::string& scopeId)
     return false;
 }
 
+bool tryParseGraphEntryKey(const std::string& key, int& entryIndex, const char*& fieldSuffix)
+{
+    if (key.size() < 6 || key.rfind("grE", 0) != 0)
+        return false;
+    const size_t under = key.find('_', 3);
+    if (under == std::string::npos || under <= 3)
+        return false;
+    int idx = 0;
+    for (size_t i = 3; i < under; ++i)
+    {
+        const char c = key[i];
+        if (c < '0' || c > '9')
+            return false;
+        idx = idx * 10 + (c - '0');
+    }
+    const std::string suffix = key.substr(under);
+    if (suffix != "_x" && suffix != "_y0" && suffix != "_y1")
+        return false;
+    entryIndex = idx;
+    fieldSuffix = (suffix == "_x") ? "_x" : ((suffix == "_y0") ? "_y0" : "_y1");
+    return true;
+}
+
+std::vector<int> collectGraphEntryIndices(const std::vector<Property>& props)
+{
+    std::vector<int> indices;
+    for (size_t i = 0; i < props.size(); ++i)
+    {
+        int entryIndex = -1;
+        const char* suffix = NULL;
+        if (!tryParseGraphEntryKey(props[i].key, entryIndex, suffix))
+            continue;
+        if (std::string(suffix) != "_x")
+            continue;
+        const Property* py0 = findPropertyConst(props, "grE" + std::to_string(entryIndex) + "_y0");
+        const Property* py1 = findPropertyConst(props, "grE" + std::to_string(entryIndex) + "_y1");
+        if (!py0 || !py1)
+            continue;
+        indices.push_back(entryIndex);
+    }
+    std::sort(indices.begin(), indices.end());
+    indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+    return indices;
+}
+
+void rewriteGraphEntryProperties(std::vector<Property>& props,
+                                 const std::vector<Property>& entryXs,
+                                 const std::vector<Property>& entryY0s,
+                                 const std::vector<Property>& entryY1s)
+{
+    std::vector<Property> kept;
+    kept.reserve(props.size());
+    for (size_t i = 0; i < props.size(); ++i)
+    {
+        int entryIndex = -1;
+        const char* suffix = NULL;
+        if (!tryParseGraphEntryKey(props[i].key, entryIndex, suffix))
+            kept.push_back(props[i]);
+    }
+
+    for (size_t i = 0; i < entryXs.size(); ++i)
+    {
+        Property px = entryXs[i];
+        Property py0 = entryY0s[i];
+        Property py1 = entryY1s[i];
+        const std::string base = "grE" + std::to_string(i);
+        px.key = base + "_x";
+        py0.key = base + "_y0";
+        py1.key = base + "_y1";
+        px.label = "Graph pt " + std::to_string(i) + " X";
+        py0.label = "Graph pt " + std::to_string(i) + " Y0";
+        py1.label = "Graph pt " + std::to_string(i) + " Y1";
+        kept.push_back(px);
+        kept.push_back(py0);
+        kept.push_back(py1);
+    }
+    props.swap(kept);
+}
+
+bool drawGraphInterpolatorEntries(InterpolatorNode& interp, const std::string& propertyScope)
+{
+    const bool isColorGraph = interp.typeName == "ColorGraphInterpolator";
+    const std::vector<int> indices = collectGraphEntryIndices(interp.properties);
+
+    struct DisplayEntry
+    {
+        int index = -1;
+        float x = 0.0f;
+    };
+
+    std::vector<DisplayEntry> display;
+    display.reserve(indices.size());
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        const int idx = indices[i];
+        const Property* px = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_x");
+        if (!px || px->type != PropertyType::Float)
+            continue;
+        display.push_back(DisplayEntry{idx, std::get<float>(px->value)});
+    }
+    std::sort(display.begin(), display.end(), [](const DisplayEntry& a, const DisplayEntry& b) {
+        return a.x < b.x;
+    });
+
+    bool changed = false;
+    int removeIndex = -1;
+    for (size_t i = 0; i < display.size(); ++i)
+    {
+        const int idx = display[i].index;
+        Property* px = findProperty(interp.properties, "grE" + std::to_string(idx) + "_x");
+        Property* py0 = findProperty(interp.properties, "grE" + std::to_string(idx) + "_y0");
+        Property* py1 = findProperty(interp.properties, "grE" + std::to_string(idx) + "_y1");
+        if (!px || !py0 || !py1)
+            continue;
+
+        ImGui::PushID(idx);
+        ImGui::Separator();
+        ImGui::Text("Entry %d", idx);
+        ImGui::SameLine();
+        const bool canDelete = display.size() > 1;
+        ImGui::BeginDisabled(!canDelete);
+        if (ImGui::Button("-"))
+            removeIndex = idx;
+        ImGui::EndDisabled();
+
+        if (px->type == PropertyType::Float)
+        {
+            float x = std::get<float>(px->value);
+            if (ImGui::InputFloat(("X##" + propertyScope + ".grE" + std::to_string(idx) + "_x").c_str(), &x, 0.0f, 0.0f, "%.6f"))
+            {
+                px->value = x;
+                changed = true;
+            }
+        }
+
+        if (isColorGraph && py0->type == PropertyType::Color4 && py1->type == PropertyType::Color4)
+        {
+            changed = drawProperty(*py0, propertyScope) || changed;
+            changed = drawProperty(*py1, propertyScope) || changed;
+        }
+        else if (!isColorGraph && py0->type == PropertyType::Float && py1->type == PropertyType::Float)
+        {
+            float y0 = std::get<float>(py0->value);
+            if (ImGui::InputFloat(("Y0##" + propertyScope + ".grE" + std::to_string(idx) + "_y0").c_str(), &y0, 0.0f, 0.0f, "%.6f"))
+            {
+                py0->value = y0;
+                changed = true;
+            }
+            float y1 = std::get<float>(py1->value);
+            if (ImGui::InputFloat(("Y1##" + propertyScope + ".grE" + std::to_string(idx) + "_y1").c_str(), &y1, 0.0f, 0.0f, "%.6f"))
+            {
+                py1->value = y1;
+                changed = true;
+            }
+        }
+        ImGui::PopID();
+    }
+
+    if (removeIndex >= 0)
+    {
+        std::vector<Property> xs;
+        std::vector<Property> y0s;
+        std::vector<Property> y1s;
+        for (size_t i = 0; i < indices.size(); ++i)
+        {
+            const int idx = indices[i];
+            if (idx == removeIndex)
+                continue;
+            const Property* px = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_x");
+            const Property* py0 = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_y0");
+            const Property* py1 = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_y1");
+            if (!px || !py0 || !py1)
+                continue;
+            xs.push_back(*px);
+            y0s.push_back(*py0);
+            y1s.push_back(*py1);
+        }
+        rewriteGraphEntryProperties(interp.properties, xs, y0s, y1s);
+        changed = true;
+    }
+
+    if (ImGui::Button(("Add entry##" + propertyScope + ".addGraphEntry").c_str()))
+    {
+        float maxX = 0.0f;
+        bool hasX = false;
+        for (size_t i = 0; i < indices.size(); ++i)
+        {
+            const Property* px = findPropertyConst(interp.properties, "grE" + std::to_string(indices[i]) + "_x");
+            if (px && px->type == PropertyType::Float)
+            {
+                const float x = std::get<float>(px->value);
+                maxX = hasX ? (std::max)(maxX, x) : x;
+                hasX = true;
+            }
+        }
+
+        std::vector<Property> xs;
+        std::vector<Property> y0s;
+        std::vector<Property> y1s;
+        for (size_t i = 0; i < indices.size(); ++i)
+        {
+            const int idx = indices[i];
+            const Property* px = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_x");
+            const Property* py0 = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_y0");
+            const Property* py1 = findPropertyConst(interp.properties, "grE" + std::to_string(idx) + "_y1");
+            if (!px || !py0 || !py1)
+                continue;
+            xs.push_back(*px);
+            y0s.push_back(*py0);
+            y1s.push_back(*py1);
+        }
+
+        const float newX = hasX ? (maxX + 1.0f) : 0.0f;
+        if (isColorGraph)
+        {
+            xs.push_back(makeFloat("", "", newX, 0.01f, -1.0e6f, 1.0e6f));
+            y0s.push_back(makeColor4("", "", SPK::Color(255, 255, 255, 255)));
+            y1s.push_back(makeColor4("", "", SPK::Color(255, 255, 255, 255)));
+        }
+        else
+        {
+            xs.push_back(makeFloat("", "", newX, 0.01f, -1.0e6f, 1.0e6f));
+            y0s.push_back(makeFloat("", "", 0.0f, 0.01f, -1.0e6f, 1.0e6f));
+            y1s.push_back(makeFloat("", "", 0.0f, 0.01f, -1.0e6f, 1.0e6f));
+        }
+        rewriteGraphEntryProperties(interp.properties, xs, y0s, y1s);
+        changed = true;
+    }
+
+    return changed;
+}
+
+template<typename YType>
+struct GraphEntryValue
+{
+    float x = 0.0f;
+    YType y0{};
+    YType y1{};
+};
+
+template<typename YType, typename ReadYFn>
+std::vector<GraphEntryValue<YType>> collectGraphEntriesForApply(const std::vector<Property>& props, PropertyType yType, ReadYFn&& readY)
+{
+    std::vector<GraphEntryValue<YType>> entries;
+    const std::vector<int> indices = collectGraphEntryIndices(props);
+    entries.reserve(indices.size());
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        const int idx = indices[i];
+        const Property* px = findPropertyConst(props, "grE" + std::to_string(idx) + "_x");
+        const Property* py0 = findPropertyConst(props, "grE" + std::to_string(idx) + "_y0");
+        const Property* py1 = findPropertyConst(props, "grE" + std::to_string(idx) + "_y1");
+        if (!px || !py0 || !py1 || px->type != PropertyType::Float || py0->type != yType || py1->type != yType)
+            continue;
+        GraphEntryValue<YType> e;
+        e.x = std::get<float>(px->value);
+        e.y0 = readY(*py0);
+        e.y1 = readY(*py1);
+        entries.push_back(e);
+    }
+    std::sort(entries.begin(), entries.end(), [](const GraphEntryValue<YType>& a, const GraphEntryValue<YType>& b) {
+        return a.x < b.x;
+    });
+    return entries;
+}
+
 void sanitizeEmitterTankFlow(float& flow, int& tankMin, int& tankMax)
 {
     if (tankMin > tankMax)
@@ -426,17 +692,15 @@ void applyColorGraphProperties(const std::vector<Property>& props, SPK::ColorGra
         scaleVar = std::copysign(0.99f, scaleVar >= 0.0f ? 1.0f : -1.0f);
     graph->setScaleXVariation(scaleVar);
 
-    const unsigned int n = graph->getNbEntries();
-    for (unsigned int e = 0; e < n; ++e)
-    {
-        const std::string base = "grE" + std::to_string(e);
-        const Property* px = findPropertyConst(props, base + "_x");
-        if (!px || px->type != PropertyType::Float)
-            continue;
-        graph->setX(e, readFloat(props, base + "_x", graph->getX(e)));
-        graph->setY0(e, readColor4(props, base + "_y0", graph->getY0(e)));
-        graph->setY1(e, readColor4(props, base + "_y1", graph->getY1(e)));
-    }
+    const std::vector<GraphEntryValue<SPK::Color>> entries =
+        collectGraphEntriesForApply<SPK::Color>(props, PropertyType::Color4, [](const Property& p) {
+            return std::get<SPK::Color>(p.value);
+        });
+    if (entries.empty())
+        return;
+    graph->clearGraph();
+    for (size_t i = 0; i < entries.size(); ++i)
+        graph->addEntry(entries[i].x, entries[i].y0, entries[i].y1);
 }
 
 void extractFloatGraphProperties(SPK::FloatGraphInterpolator* graph, InterpolatorNode& i)
@@ -475,17 +739,15 @@ void applyFloatGraphProperties(const std::vector<Property>& props, SPK::FloatGra
         scaleVar = std::copysign(0.99f, scaleVar >= 0.0f ? 1.0f : -1.0f);
     graph->setScaleXVariation(scaleVar);
 
-    const unsigned int n = graph->getNbEntries();
-    for (unsigned int e = 0; e < n; ++e)
-    {
-        const std::string base = "grE" + std::to_string(e);
-        const Property* px = findPropertyConst(props, base + "_x");
-        if (!px || px->type != PropertyType::Float)
-            continue;
-        graph->setX(e, readFloat(props, base + "_x", graph->getX(e)));
-        graph->setY0(e, readFloat(props, base + "_y0", graph->getY0(e)));
-        graph->setY1(e, readFloat(props, base + "_y1", graph->getY1(e)));
-    }
+    const std::vector<GraphEntryValue<float>> entries =
+        collectGraphEntriesForApply<float>(props, PropertyType::Float, [](const Property& p) {
+            return std::get<float>(p.value);
+        });
+    if (entries.empty())
+        return;
+    graph->clearGraph();
+    for (size_t i = 0; i < entries.size(); ++i)
+        graph->addEntry(entries[i].x, entries[i].y0, entries[i].y1);
 }
 
 std::string makeImGuiComboItems(const char* const* labels, int n)
@@ -1576,6 +1838,43 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
         ImGui::TreePop();
     };
 
+    auto drawInterpolatorNode = [&changed](InterpolatorNode& interp,
+                                           const std::string& treeId,
+                                           const std::string& propertyScope,
+                                           const std::string& deleteButtonId,
+                                           bool& deleteClicked) {
+        const bool opened = ImGui::TreeNode((interp.title + treeId).c_str());
+        ImGui::SameLine();
+        if (ImGui::Button(deleteButtonId.c_str()))
+        {
+            deleteClicked = true;
+            if (opened)
+                ImGui::TreePop();
+            return;
+        }
+        if (!opened)
+            return;
+
+        for (size_t p = 0; p < interp.properties.size(); ++p)
+        {
+            const std::string& key = interp.properties[p].key;
+            if (key.rfind("grE", 0) == 0)
+                continue;
+            changed = drawProperty(interp.properties[p], propertyScope) || changed;
+        }
+
+        if (interp.typeName == "FloatGraphInterpolator" || interp.typeName == "ColorGraphInterpolator")
+        {
+            ImGui::Separator();
+            ImGui::TextUnformatted("Graph Entries (sorted by X)");
+            changed = drawGraphInterpolatorEntries(interp, propertyScope) || changed;
+        }
+        else if (interp.properties.empty())
+            ImGui::TextUnformatted("No exposed editable properties for this type yet.");
+
+        ImGui::TreePop();
+    };
+
     auto drawRendererNode = [this, &changed](RendererNode& renderer,
                                        SPK::Group* liveGroup,
                                        const std::string& treeId,
@@ -1944,12 +2243,11 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
                     if (interp.groupIndex != g.groupIndex)
                         continue;
                     bool deleteInterp = false;
-                    drawSimpleNode("##interp",
-                                   interp.title,
-                                   interp.properties,
-                                   "interp." + std::to_string(interp.groupIndex) + "." + std::to_string(interp.param),
-                                   "-##del.interp." + std::to_string(interp.groupIndex) + "." + std::to_string(interp.param),
-                                   deleteInterp);
+                    drawInterpolatorNode(interp,
+                                         "##interp",
+                                         "interp." + std::to_string(interp.groupIndex) + "." + std::to_string(interp.param),
+                                         "-##del.interp." + std::to_string(interp.groupIndex) + "." + std::to_string(interp.param),
+                                         deleteInterp);
                     if (deleteInterp && liveGroupPtr)
                     {
                         if (interp.param == -1)
