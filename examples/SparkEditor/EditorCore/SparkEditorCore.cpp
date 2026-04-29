@@ -1332,6 +1332,67 @@ void SparkEditorCore::applyToSystem(SPK::System& system) const
     }
 }
 
+bool SparkEditorCore::processDeferredQuadTexturePick(SPK::Ref<SPK::System>& system)
+{
+    if (!pendingQuadTexturePick_)
+        return false;
+    pendingQuadTexturePick_ = false;
+    const int gi = pendingQuadTextureGroupIndex_;
+    pendingQuadTextureGroupIndex_ = -1;
+    if (!system || gi < 0 || static_cast<size_t>(gi) >= system->getNbGroups())
+        return false;
+    SPK::Ref<SPK::Group> gref = system->getGroup(static_cast<size_t>(gi));
+    if (!gref)
+        return false;
+    SPK::GL::GLQuadRenderer* quad = dynamic_cast<SPK::GL::GLQuadRenderer*>(gref->getRenderer().get());
+    if (!quad)
+        return false;
+
+    std::string imagePath;
+    const bool dlgOk = ShowOpenImageFileDialog(imagePath);
+    if (!dlgOk)
+    {
+        std::cout << "Show Open Image File Dialog Failed: " << imagePath << "," << __LINE__ << std::endl << std::flush;
+        return false;
+    }
+
+    queuedQuadTexturePath_ = imagePath;
+    queuedQuadTextureGroupIndex_ = gi;
+    queuedQuadTextureLoad_ = true;
+    return false;
+}
+
+void SparkEditorCore::applyQueuedQuadTextureLoad(SPK::Ref<SPK::System>& system)
+{
+    if (!queuedQuadTextureLoad_ || !system)
+        return;
+    const int gi = queuedQuadTextureGroupIndex_;
+    const std::string imagePath = queuedQuadTexturePath_;
+    queuedQuadTextureLoad_ = false;
+    queuedQuadTextureGroupIndex_ = -1;
+    queuedQuadTexturePath_.clear();
+
+    if (gi < 0 || static_cast<size_t>(gi) >= system->getNbGroups())
+        return;
+    SPK::Ref<SPK::Group> gref = system->getGroup(static_cast<size_t>(gi));
+    if (!gref)
+        return;
+    SPK::GL::GLQuadRenderer* quad = dynamic_cast<SPK::GL::GLQuadRenderer*>(gref->getRenderer().get());
+    if (!quad)
+        return;
+
+    unsigned int newTex = 0u;
+    if (!LoadTextureForEditor(imagePath, newTex) || newTex == 0u)
+    {
+        std::cout << "Load Texture Failed: " << imagePath << "," << __LINE__ << std::endl << std::flush;
+        return;
+    }
+
+    quad->setTexturingMode(SPK::TEXTURE_MODE_2D);
+    quad->setTexture(newTex);
+    std::cout << "Load Texture Success: " << imagePath << std::endl << std::flush;
+}
+
 void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
 {
     if (!system)
@@ -1515,7 +1576,7 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
         ImGui::TreePop();
     };
 
-    auto drawRendererNode = [&changed](RendererNode& renderer,
+    auto drawRendererNode = [this, &changed](RendererNode& renderer,
                                        SPK::Group* liveGroup,
                                        const std::string& treeId,
                                        const std::string& propertyScope,
@@ -1582,22 +1643,8 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
 
                 if (pickTexture)
                 {
-                    std::string imagePath;
-                    if (ShowOpenImageFileDialog(imagePath))
-                    {
-                        unsigned int newTex = 0u;
-                        if (LoadTextureForEditor(imagePath, newTex) && newTex != 0u)
-                        {
-                            quad->setTexturingMode(SPK::TEXTURE_MODE_2D);
-                            quad->setTexture(newTex);
-                            changed = true;
-                            std::cout<<"Load Texture Success: "<<imagePath<<std::endl;
-                        }
-                        else
-                        {
-                            std::cout<<"Load Texture Failed: "<<imagePath<<std::endl;
-                        }
-                    }
+                    pendingQuadTexturePick_ = true;
+                    pendingQuadTextureGroupIndex_ = renderer.groupIndex;
                 }
             }
         }
@@ -2031,6 +2078,8 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
         if (pendingTreeResync)
             extractFromSystem(*system);
     }
+
+    changed = processDeferredQuadTexturePick(system) || changed;
 
     if (changed)
         applyToSystem(*system);

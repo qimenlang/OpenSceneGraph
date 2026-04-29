@@ -46,6 +46,7 @@
 
 #include <SPARK.h>
 #include <SPARK_GL.h>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -690,6 +691,8 @@ public:
 
         if (!_system)
             return;
+
+        _editorCore.applyQueuedQuadTextureLoad(_system);
 
         if (gReloadDemoRequested)
         {

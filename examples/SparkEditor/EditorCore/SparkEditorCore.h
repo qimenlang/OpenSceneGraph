@@ -101,14 +101,23 @@ public:
     void setSourceFilePath(const std::string& sourcePath);
     bool extractFromSystem(SPK::System& system);
     void drawImGui(SPK::Ref<SPK::System>& system);
+    /** Call from Spark drawable drawImplementation (GL context current) to upload queued texture. */
+    void applyQueuedQuadTextureLoad(SPK::Ref<SPK::System>& system);
 
 private:
+    /** After ImGui tree: file dialog only; GPU upload is deferred to applyQueuedQuadTextureLoad. */
+    bool processDeferredQuadTexturePick(SPK::Ref<SPK::System>& system);
     void applyToSystem(SPK::System& system) const;
     const char* modifierTypeName(const SPK::Modifier* modifier) const;
     const char* interpolatorTypeName(const SPK::Interpolator<float>* interpolator) const;
 
     SystemEditableData data_;
     std::vector<GroupAddUiState> groupAddUi_;
+    bool pendingQuadTexturePick_ = false;
+    int pendingQuadTextureGroupIndex_ = -1;
+    bool queuedQuadTextureLoad_ = false;
+    int queuedQuadTextureGroupIndex_ = -1;
+    std::string queuedQuadTexturePath_;
 };
 
 } // namespace spark_editor
