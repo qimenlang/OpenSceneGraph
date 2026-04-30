@@ -934,6 +934,10 @@ int rendererSpawnKind(const SPK::Renderer* renderer)
 /** Type-specific renderer fields (spark_description on GL*Renderer). Pairs use split keys for Property. */
 void appendRendererTypeProperties(SPK::Renderer* renderer, std::vector<Property>& out)
 {
+    out.push_back(makeBool("renderOptAlphaTest", "Alpha Test", renderer->isRenderingOptionEnabled(SPK::RENDERING_OPTION_ALPHA_TEST)));
+    out.push_back(makeBool("renderOptDepthTest", "Depth Test", renderer->isRenderingOptionEnabled(SPK::RENDERING_OPTION_DEPTH_TEST)));
+    out.push_back(makeBool("renderOptDepthWrite", "Depth Write", renderer->isRenderingOptionEnabled(SPK::RENDERING_OPTION_DEPTH_WRITE)));
+
     if (SPK::GL::GLRenderer* glRenderer = dynamic_cast<SPK::GL::GLRenderer*>(renderer))
         out.push_back(makeInt("blendMode", "Blend Mode", detectBlendModeIndex(glRenderer), 1.0f, 0, kNbBlendModes - 1));
 
@@ -966,6 +970,16 @@ void appendRendererTypeProperties(SPK::Renderer* renderer, std::vector<Property>
 
 void applyRendererTypeProperties(SPK::Renderer* renderer, const std::vector<Property>& props)
 {
+    renderer->enableRenderingOption(
+        SPK::RENDERING_OPTION_ALPHA_TEST,
+        readBool(props, "renderOptAlphaTest", renderer->isRenderingOptionEnabled(SPK::RENDERING_OPTION_ALPHA_TEST)));
+    renderer->enableRenderingOption(
+        SPK::RENDERING_OPTION_DEPTH_TEST,
+        readBool(props, "renderOptDepthTest", renderer->isRenderingOptionEnabled(SPK::RENDERING_OPTION_DEPTH_TEST)));
+    renderer->enableRenderingOption(
+        SPK::RENDERING_OPTION_DEPTH_WRITE,
+        readBool(props, "renderOptDepthWrite", renderer->isRenderingOptionEnabled(SPK::RENDERING_OPTION_DEPTH_WRITE)));
+
     int blendMode = readInt(props, "blendMode", 1);
     blendMode = std::clamp(blendMode, 0, kNbBlendModes - 1);
     renderer->setBlendMode(static_cast<SPK::BlendMode>(blendMode));
@@ -1904,7 +1918,52 @@ void SparkEditorCore::drawImGui(SPK::Ref<SPK::System>& system)
             Property& prop = renderer.properties[p];
             if (prop.key == "blendMode" && prop.type == PropertyType::Int)
                 continue;
+            if (prop.key == "renderOptAlphaTest" || prop.key == "renderOptDepthTest" || prop.key == "renderOptDepthWrite")
+                continue;
             changed = drawProperty(prop, propertyScope) || changed;
+        }
+
+        Property* alphaTestProp = findProperty(renderer.properties, "renderOptAlphaTest");
+        Property* depthTestProp = findProperty(renderer.properties, "renderOptDepthTest");
+        Property* depthWriteProp = findProperty(renderer.properties, "renderOptDepthWrite");
+        if (alphaTestProp && depthTestProp && depthWriteProp &&
+            alphaTestProp->type == PropertyType::Bool &&
+            depthTestProp->type == PropertyType::Bool &&
+            depthWriteProp->type == PropertyType::Bool)
+        {
+            ImGui::Separator();
+            ImGui::TextUnformatted("Rendering Options");
+
+            bool alphaTestEnabled = std::get<bool>(alphaTestProp->value);
+            bool depthTestEnabled = std::get<bool>(depthTestProp->value);
+            bool depthWriteEnabled = std::get<bool>(depthWriteProp->value);
+
+            if (ImGui::Checkbox(("Alpha Test##" + propertyScope + ".renderOptAlphaTest").c_str(), &alphaTestEnabled))
+            {
+                alphaTestProp->value = alphaTestEnabled;
+                changed = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox(("Depth Test##" + propertyScope + ".renderOptDepthTest").c_str(), &depthTestEnabled))
+            {
+                depthTestProp->value = depthTestEnabled;
+                changed = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox(("Depth Write##" + propertyScope + ".renderOptDepthWrite").c_str(), &depthWriteEnabled))
+            {
+                depthWriteProp->value = depthWriteEnabled;
+                changed = true;
+            }
+
+            unsigned int renderingOptionsMask = 0u;
+            if (alphaTestEnabled)
+                renderingOptionsMask |= SPK::RENDERING_OPTION_ALPHA_TEST;
+            if (depthTestEnabled)
+                renderingOptionsMask |= SPK::RENDERING_OPTION_DEPTH_TEST;
+            if (depthWriteEnabled)
+                renderingOptionsMask |= SPK::RENDERING_OPTION_DEPTH_WRITE;
+            ImGui::Text("renderingOptionsMask: %u", renderingOptionsMask);
         }
 
         if (blendModeProp && blendModeProp->type == PropertyType::Int)

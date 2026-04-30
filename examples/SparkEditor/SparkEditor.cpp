@@ -586,7 +586,7 @@ public:
                     const std::string saveDir = osgDB::getFilePath(path);
                     const std::string saveStem = osgDB::getNameLessExtension(osgDB::getSimpleFileName(path));
                     const std::string spkPath = osgDB::concatPaths(saveDir, saveStem + ".spk");
-                    const std::string xmlPath = osgDB::concatPaths(saveDir, saveStem + ".xml");
+                    const std::string xmlPath = osgDB::concatPaths(saveDir, saveStem + ".spk.xml");
 
                     spark_editor::PrepareParticleSaveWithDemoTextures(_system, spkPath);
                     const bool okSpk = SPK::IO::Manager::get().save(spkPath, _system);
