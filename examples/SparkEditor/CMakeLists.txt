@@ -27,10 +27,37 @@ if(WIN32)
 endif()
 
 if(MSVC)
+    set(SPARKEDITOR_DEPLOY_TARGET deploy_example_SparkEditor_runtime)
+    add_custom_target(${SPARKEDITOR_DEPLOY_TARGET} ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:example_SparkEditor>
+            $<TARGET_FILE_DIR:example_SparkEditor>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_PDB_FILE:SPARK_Core>
+            $<TARGET_FILE_DIR:example_SparkEditor>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_PDB_FILE:SPARK_OpenGL>
+            $<TARGET_FILE_DIR:example_SparkEditor>
+        COMMAND_EXPAND_LISTS
+        COMMENT "Deploy SparkEditor runtime DLL/PDB files"
+    )
+
+    # Preserve the post-link deployment path when SparkEditor itself relinks.
     add_custom_command(TARGET example_SparkEditor POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_RUNTIME_DLLS:example_SparkEditor>
             $<TARGET_FILE_DIR:example_SparkEditor>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_PDB_FILE:SPARK_Core>
+            $<TARGET_FILE_DIR:example_SparkEditor>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_PDB_FILE:SPARK_OpenGL>
+            $<TARGET_FILE_DIR:example_SparkEditor>
+        COMMAND ${CMAKE_COMMAND} -E echo "####Debug Info####"
+        COMMAND ${CMAKE_COMMAND} -E echo "TARGET_RUNTIME_DLLS:example_SparkEditor:$<TARGET_RUNTIME_DLLS:example_SparkEditor>"
+        COMMAND ${CMAKE_COMMAND} -E echo "TARGET_FILE_DIR:example_SparkEditor:$<TARGET_FILE_DIR:example_SparkEditor>"
+        COMMAND ${CMAKE_COMMAND} -E echo "TARGET_PDB_FILE:SPARK_Core:$<TARGET_PDB_FILE:SPARK_Core>"
+        COMMAND ${CMAKE_COMMAND} -E echo "TARGET_PDB_FILE:SPARK_OpenGL:$<TARGET_PDB_FILE:SPARK_OpenGL>"     
         COMMAND_EXPAND_LISTS
     )
 endif()

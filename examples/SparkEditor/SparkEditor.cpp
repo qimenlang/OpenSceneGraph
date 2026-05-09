@@ -288,20 +288,22 @@ osg::ref_ptr<osg::MatrixTransform> createVectorArrow(const osg::Vec3& start, con
 
 // 使用示例：绘制法线向量
 osg::ref_ptr<osg::MatrixTransform> createNormalVector(const osg::Vec3& position,
-    const osg::Vec3& normal,
+    const osg::Vec3& normal,const osg::Vec3& color,
     float scale = 1.0f)
 {
     // 假设normal是单位向量，scale控制长度
-    return createVectorArrow(position, normal, scale, osg::Vec4(0, 1, 0, 1)); // 绿色法线
+    return createVectorArrow(position, normal, scale, osg::Vec4(color, 1)); // 绿色法线
 }
 
-osg::ref_ptr<osg::MatrixTransform> createCube(osg::Vec3 Pos,osg::Vec3 color) {
-    osg::ref_ptr<osg::Box> box = new osg::Box(osg::Vec3(0,0,0), 0.2f);
+osg::ref_ptr<osg::MatrixTransform> createSphere(osg::Vec3 Pos,osg::Vec3 color,float scale) {
+    osg::ref_ptr<osg::Sphere> box = new osg::Sphere(osg::Vec3(0,0,0), 1.0f);
     osg::ref_ptr<osg::ShapeDrawable> boxDrawable = new osg::ShapeDrawable(box);
     boxDrawable->setColor(osg::Vec4(color, 1));
 
+    osg::Vec3f scaleVec(scale, scale, scale);
+
     osg::ref_ptr<osg::MatrixTransform> cubeTransform = new osg::MatrixTransform();
-    cubeTransform->setMatrix(osg::Matrix::translate(Pos));
+    cubeTransform->setMatrix(osg::Matrix::scale(scaleVec) * osg::Matrix::translate(Pos));
     cubeTransform->addChild(boxDrawable.get());
     return cubeTransform;
 }
@@ -311,29 +313,31 @@ osg::Group* createCoord()
     osg::Group* root = new osg::Group();
 
     osg::Vec3 ori = osg::Vec3(0, 0, 0);
-    osg::Vec3 dir = osg::Vec3(1, 1, 1);
-    dir.normalize();
-    osg::ref_ptr<osg::MatrixTransform> line = createNormalVector(
-        ori,    // 起点
-        dir     // 方向
+
+    osg::ref_ptr<osg::MatrixTransform> coordOrigin = createSphere(osg::Vec3(0,0,0), osg::Vec3(1, 1, 1),0.08f);
+    osg::ref_ptr<osg::MatrixTransform> coordX = createNormalVector(
+        ori,   
+        osg::Vec3(1, 0, 0),
+        osg::Vec3(1, 0, 0),
+        1.0f
     );
-
-    //line->addUpdateCallback(new RotateCallback());
-    line->setMatrix(osg::Matrix::translate(osg::Vec3(0,0,0)));
-
-    auto lineRotate = line->getMatrix().getRotate().asVec3();
-    std::cout<<"Line Rot:"<<Vec3ToString(lineRotate)<<std::endl;
-
-    osg::ref_ptr<osg::MatrixTransform> coordOrigin = createCube(osg::Vec3(0,0,0), osg::Vec3(0, 0, 0));
-    osg::ref_ptr<osg::MatrixTransform> coordX= createCube(osg::Vec3(1,0,0), osg::Vec3(1, 0, 0));
-    osg::ref_ptr<osg::MatrixTransform> coordY= createCube(osg::Vec3(0,1,0), osg::Vec3(0, 1, 0));
-    osg::ref_ptr<osg::MatrixTransform> coordZ= createCube(osg::Vec3(0,0,1), osg::Vec3(0, 0, 1));
+    osg::ref_ptr<osg::MatrixTransform> coordY = createNormalVector(
+        ori,   
+        osg::Vec3(0, 1, 0),
+        osg::Vec3(0, 1, 0),
+        1.0f
+    );
+    osg::ref_ptr<osg::MatrixTransform> coordZ = createNormalVector(
+        ori,   
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1),
+        1.0f
+    );
     root->addChild(coordOrigin.get());
     root->addChild(coordX.get());
     root->addChild(coordY.get());
     root->addChild(coordZ.get());
 
-    root->addChild(line.get());
     root->setName("coord");
 
     return root;
@@ -371,7 +375,7 @@ public:
 protected:
     void drawUi() override
     {
-        ImGui::Begin("Rotor Wash");
+        ImGui::Begin("Spark Particle Editor");
 
         {
             float osgInstantFps = 0.f;
@@ -665,7 +669,7 @@ public:
             std::cout << "[GL] Renderer: " << (renderer ? renderer : "null") << '\n';
             std::cout << "[GL] Vendor: " << (vendor ? vendor : "null") << '\n';
             std::cout << "[GL] GLSL: " << (glsl ? glsl : "null") << '\n';
-        }
+        }   
         if (!_initialized)
         {
             _initialized = true;
@@ -803,6 +807,7 @@ int main(int , char **)
     std::cout<<"getThreadingModel:"<< viewer->getThreadingModel()<<std::endl;
 
     viewer->setSceneData( root );
+    viewer->setRunMaxFrameRate(60.0);
 
     return viewer->run();
 }
