@@ -454,17 +454,17 @@ static char gParticleLoadPathBuf[1024] = "";
 #endif
 
 /** Mirrors thirdparty/SPARK/demos/src loadTexture(..., type, clamp, mipmap): legacy GL @a internalFormat, GL_CLAMP wraps, LINEAR mag, mipmap min filter when requested. */
-GLuint createTextureFromSparkRes(
+GLuint createTextureFromDemoResource(
     const std::string& fileName,
     osg::State& state,
     std::vector<osg::ref_ptr<osg::Texture2D> >& textureOwners,
     GLint internalFormat,
     bool mipmap)
 {
-    const std::string dataPath = osgDB::findDataFile("SparkRes/" + fileName);
+    const std::string dataPath = osgDB::findDataFile(fileName);
     if (dataPath.empty())
     {
-        std::cout << "Failed to locate SparkRes/" << fileName << " via OSG_FILE_PATH\n";
+        std::cout << "Failed to locate demo texture \"" << fileName << "\" (expected under Resource next to executable, or on OSG data path)\n";
         return 0;
     }
 
@@ -517,21 +517,21 @@ spark_editor::DemoTextureSet loadDemoTextures(osg::State& state, std::vector<osg
 {
     spark_editor::DemoTextureSet textures;
     // SPKExplosion.cpp loadTexture paths (GL_CLAMP for all).
-    textures.explosion = createTextureFromSparkRes("explosion.bmp", state, textureOwners, GL_ALPHA, false);
-    textures.flash = createTextureFromSparkRes("flash.bmp", state, textureOwners, GL_RGB, false);
-    textures.spark1 = createTextureFromSparkRes("spark1.bmp", state, textureOwners, GL_RGB, false);
-    textures.spark2 = createTextureFromSparkRes("point.bmp", state, textureOwners, GL_ALPHA, false);
-    textures.wave = createTextureFromSparkRes("wave.bmp", state, textureOwners, GL_RGBA, false);
+    textures.explosion = createTextureFromDemoResource("explosion.bmp", state, textureOwners, GL_ALPHA, false);
+    textures.flash = createTextureFromDemoResource("flash.bmp", state, textureOwners, GL_RGB, false);
+    textures.spark1 = createTextureFromDemoResource("spark1.bmp", state, textureOwners, GL_RGB, false);
+    textures.spark2 = createTextureFromDemoResource("point.bmp", state, textureOwners, GL_ALPHA, false);
+    textures.wave = createTextureFromDemoResource("wave.bmp", state, textureOwners, GL_RGBA, false);
     // SPKTest.cpp: explosion.bmp as luminance + mipmaps (separate GL texture from explosion above).
-    textures.explosionSPKTest = createTextureFromSparkRes("explosion.bmp", state, textureOwners, GL_LUMINANCE, true);
+    textures.explosionSPKTest = createTextureFromDemoResource("explosion.bmp", state, textureOwners, GL_LUMINANCE, true);
     // SPKTestIrrlicht*.cpp: Irrlicht loads flare.bmp (full color); approximate as RGBA like SPARK GL RGBA paths.
-    textures.flare = createTextureFromSparkRes("flare.bmp", state, textureOwners, GL_RGBA, false);
+    textures.flare = createTextureFromDemoResource("flare.bmp", state, textureOwners, GL_RGBA, false);
     // DX9 demos + SPKFlakes point sprites: D3DXCreateTextureFromFile (full color); match SPARK GL_RGB uploads.
-    textures.point = createTextureFromSparkRes("point.bmp", state, textureOwners, GL_RGB, false);
+    textures.point = createTextureFromDemoResource("point.bmp", state, textureOwners, GL_RGB, false);
     // SPKCollision.cpp
-    textures.ball = createTextureFromSparkRes("ball.bmp", state, textureOwners, GL_RGBA, false);
+    textures.ball = createTextureFromDemoResource("ball.bmp", state, textureOwners, GL_RGBA, false);
     // DX9 RainDemo: waterdrops.bmp via D3DX (full color); use RGBA like wave.bmp in GL demos.
-    textures.waterdrops = createTextureFromSparkRes("waterdrops.bmp", state, textureOwners, GL_RGBA, false);
+    textures.waterdrops = createTextureFromDemoResource("waterdrops.bmp", state, textureOwners, GL_RGBA, false);
     return textures;
 }
 
@@ -781,6 +781,8 @@ int main(int , char **)
     // create viewer on heap as a test, this looks to be causing problems
     // on init on some platforms, and seg fault on exit when multi-threading on linux.
     // Normal stack based version below works fine though...
+
+    spark_editor::RegisterSparkEditorDemoResourcePath();
 
     // construct the viewer.
     osg::ref_ptr<osgViewer::Viewer> viewer = new osgViewer::Viewer;

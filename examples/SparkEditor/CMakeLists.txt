@@ -14,6 +14,10 @@ SET(TARGET_SRC SparkEditor.cpp
 #### end var setup  ###
 SETUP_EXAMPLE(SparkEditor)
 
+install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/Resource"
+    DESTINATION share/OpenSceneGraph/bin
+    COMPONENT openscenegraph-examples)
+
 # SPARK project does not export SPARK_INCLUDE_DIRS, use concrete include root.
 target_include_directories(example_SparkEditor PRIVATE
     ${CMAKE_SOURCE_DIR}/thirdparty/SPARK/include
@@ -25,6 +29,14 @@ target_link_libraries(example_SparkEditor imgui SPARK_Core SPARK_OpenGL)
 if(WIN32)
     target_link_libraries(example_SparkEditor comdlg32)
 endif()
+
+set(SPARKEDITOR_RESOURCE_SRC "${CMAKE_CURRENT_LIST_DIR}/Resource")
+add_custom_command(TARGET example_SparkEditor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${SPARKEDITOR_RESOURCE_SRC}"
+        "$<TARGET_FILE_DIR:example_SparkEditor>/Resource"
+    COMMENT "Copy SparkEditor Resource textures beside example_SparkEditor executable"
+)
 
 if(MSVC)
     set(SPARKEDITOR_DEPLOY_TARGET deploy_example_SparkEditor_runtime)

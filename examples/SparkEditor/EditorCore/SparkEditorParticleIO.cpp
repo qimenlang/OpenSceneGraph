@@ -4,6 +4,7 @@
 #include <osgDB/FileNameUtils>
 #include <osgDB/FileUtils>
 #include <osgDB/ReadFile>
+#include <osgDB/Registry>
 
 #include <SPARK_GL.h>
 
@@ -12,12 +13,29 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 namespace spark_editor
 {
 namespace
 {
 
 std::unordered_map<unsigned int, std::string> gTextureIdToBasename;
+
+std::string GetExecutableDirectory()
+{
+#if defined(_WIN32)
+    char buf[MAX_PATH];
+    const DWORD n = GetModuleFileNameA(NULL, buf, MAX_PATH);
+    if (n == 0u || n >= MAX_PATH)
+        return std::string();
+    return osgDB::getFilePath(std::string(buf));
+#else
+    return std::string();
+#endif
+}
 
 /** Resolve texture path from renderer name: absolute paths unchanged, else relative to particle file directory. */
 std::string ResolveTextureImagePath(const std::string& particleFileDir, const std::string& nameFromRenderer)
@@ -95,6 +113,25 @@ GLuint CreateTextureFromOsgImage(osg::Image* image)
 
 } // namespace
 
+void RegisterSparkEditorDemoResourcePath()
+{
+    static bool s_registered = false;
+    if (s_registered)
+        return;
+    s_registered = true;
+
+    const std::string exeDir = GetExecutableDirectory();
+    if (exeDir.empty())
+        return;
+
+    const std::string resDir = osgDB::concatPaths(exeDir, "Resource");
+    if (!osgDB::fileExists(resDir))
+        return;
+
+    osgDB::FilePathList& pathList = osgDB::Registry::instance()->getDataFilePathList();
+    pathList.insert(pathList.begin(), resDir);
+}
+
 void RegisterDemoTextureFile(unsigned int textureId, const std::string& sparkResFileName)
 {
     if (textureId == 0u)
@@ -152,7 +189,7 @@ bool PrepareParticleSaveWithDemoTextures(const SPK::Ref<SPK::System>& system, co
                 else
                 {
                     std::cout << "SparkEditor: GLQuadRenderer uses texture id " << qr->getTexture()
-                              << " with no SparkRes registration; name left unset for save.\n";
+                              << " with no demo texture registration; name left unset for save.\n";
                     qr->setName("");
                 }
             }
@@ -172,7 +209,7 @@ bool PrepareParticleSaveWithDemoTextures(const SPK::Ref<SPK::System>& system, co
                 else
                 {
                     std::cout << "SparkEditor: GLPointRenderer uses texture id " << pr->getTexture()
-                              << " with no SparkRes registration; name left unset for save.\n";
+                              << " with no demo texture registration; name left unset for save.\n";
                     pr->setName("");
                 }
             }
@@ -183,16 +220,16 @@ bool PrepareParticleSaveWithDemoTextures(const SPK::Ref<SPK::System>& system, co
 
     for (const std::string& base : basenamesToCopy)
     {
-        const std::string src = osgDB::findDataFile("SparkRes/" + base);
+        const std::string src = osgDB::findDataFile(base);
         if (src.empty())
         {
-            std::cout << "SparkEditor: could not find SparkRes/" << base << " to copy beside save file.\n";
+            std::cout << "SparkEditor: could not find demo texture \"" << base << "\" on data path to copy beside save file.\n";
             continue;
         }
         const std::string dst = osgDB::concatPaths(outDir, base);
         const osgDB::CopyFileResult cr = osgDB::copyFile(src, dst);
         if (cr != osgDB::COPY_FILE_OK && cr != osgDB::COPY_FILE_SOURCE_EQUALS_DESTINATION)
-            std::cout << "SparkEditor: copyFile SparkRes asset failed (" << base << ") code " << static_cast<int>(cr) << '\n';
+            std::cout << "SparkEditor: copyFile demo texture failed (" << base << ") code " << static_cast<int>(cr) << '\n';
     }
 
     return true;
