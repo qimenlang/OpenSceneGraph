@@ -24,19 +24,21 @@ SPK::Ref<SPK::System> createSPKTest(const DemoTextureSet& textures)
     const GLuint explosionTex = textures.explosionSPKTest ? textures.explosionSPKTest : textures.explosion;
     SPK::Ref<SPK::GL::GLQuadRenderer> renderer = makeQuadRenderer(explosionTex, SPK::BLEND_MODE_ADD);
     SPK::Ref<SPK::SphericEmitter> emitter = SPK::SphericEmitter::create(
-        SPK::Vector3D(0.0f, 0.0f, -1.0f), 0.0f, 3.14159f / 4.0f,
+        SPK::Vector3D(0.0f, -1.0f, 0.0f), 0.0f, 3.14159f / 4.0f,
         SPK::Point::create(), true, -1, 100.0f, 0.2f, 0.5f);
 
     SPK::Ref<SPK::Group> phantomGroup = system->createGroup(40);
     SPK::Ref<SPK::Group> trailGroup = system->createGroup(1000);
-    SPK::Ref<SPK::Plane> ground = SPK::Plane::create(SPK::Vector3D(0.0f, -1.0f, 0.0f));
+    SPK::Ref<SPK::Plane> ground = SPK::Plane::create(
+        SPK::Vector3D(0.0f, 0.0f, -1.0f),
+        SPK::Vector3D(0.0f, 0.0f, 1.0f));
 
     phantomGroup->setLifeTime(5.0f, 5.0f);
     phantomGroup->setRadius(0.06f);
     phantomGroup->addEmitter(SPK::SphericEmitter::create(
-        SPK::Vector3D(0.0f, 1.0f, 0.0f), 0.0f, 3.14159f / 4.0f,
-        SPK::Point::create(SPK::Vector3D(0.0f, -1.0f, 0.0f)), true, -1, 2.0f, 1.2f, 2.0f));
-    phantomGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -1.0f, 0.0f)));
+        SPK::Vector3D(0.0f, 0.0f, 1.0f), 0.0f, 3.14159f / 2.0f,
+        SPK::Point::create(SPK::Vector3D(0.0f, 0.0f, -1.0f)), true, -1, 2.0f, 1.2f, 2.0f));
+    phantomGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -1.0f)));
     phantomGroup->addModifier(SPK::Obstacle::create(ground, 0.8f));
     phantomGroup->addModifier(SPK::EmitterAttacher::create(trailGroup, emitter, true));
 
@@ -67,7 +69,7 @@ SPK::Ref<SPK::System> createSPKCollision(const DemoTextureSet& textures)
     group->setImmortal(true);
     group->setRadius(0.06f);
     group->setRenderer(renderer);
-    group->addModifier(SPK::Gravity::create());
+    group->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -1.0f)));
     group->addModifier(SPK::Obstacle::create(cube, 0.8f, 0.9f, SPK::ZONE_TEST_INTERSECT));
     group->addModifier(SPK::Collider::create(0.8f));
     group->addModifier(SPK::Friction::create(0.2f));
@@ -94,7 +96,7 @@ SPK::Ref<SPK::System> createSPKFlakes(const DemoTextureSet& textures)
     group->setRadius(0.0f);
     group->setRenderer(renderer);
     group->setColorInterpolator(SPK::ColorDefaultInitializer::create(0xFFCC4C66));
-    group->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -0.5f, 0.0f)));
+    group->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -0.5f)));
     group->addModifier(SPK::Friction::create(0.2f));
     group->addModifier(SPK::Obstacle::create(sphere, 0.9f, 0.9f));
     group->setImmortal(true);
@@ -116,7 +118,7 @@ SPK::Ref<SPK::System> createSPKExplosion(const DemoTextureSet& textures)
     sparkRenderer->setOrientation(SPK::DIRECTION_ALIGNED);
     sparkRenderer->setScale(0.05f, 1.0f);
     waveRenderer->setOrientation(SPK::FIXED_ORIENTATION);
-    waveRenderer->lookVector.set(0.0f, 1.0f, 0.0f);
+    waveRenderer->lookVector.set(0.0f, 0.0f, 1.0f);
     waveRenderer->upVector.set(1.0f, 0.0f, 0.0f);
 
     SPK::Ref<SPK::Sphere> explosionSphere = SPK::Sphere::create(SPK::Vector3D(), 0.4f);
@@ -138,7 +140,7 @@ SPK::Ref<SPK::System> createSPKExplosion(const DemoTextureSet& textures)
     smokeGroup->addEmitter(smokeEmitter);
     smokeGroup->setColorInterpolator(SPK::ColorSimpleInterpolator::create(0x33333399, 0x33333300));
     smokeGroup->setParamInterpolator(SPK::PARAM_SCALE, SPK::FloatRandomInterpolator::create(0.3f, 0.4f, 0.5f, 0.7f));
-    smokeGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.05f, 0.0f)));
+    smokeGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, 0.05f)));
 
     SPK::Ref<SPK::Group> flameGroup = system->createGroup(15);
     flameGroup->setLifeTime(1.5f, 2.0f);
@@ -158,7 +160,7 @@ SPK::Ref<SPK::System> createSPKExplosion(const DemoTextureSet& textures)
     sparkGroup->setParamInterpolator(SPK::PARAM_MASS, SPK::FloatRandomInitializer::create(0.5f, 2.5f));
     sparkGroup->setColorInterpolator(SPK::ColorRandomInterpolator::create(0xFFFFB2FF, 0xFFFFB2FF, 0xFF4C4C00, 0xFFFF4C00));
     sparkGroup->addEmitter(SPK::NormalEmitter::create(explosionSphere, true, 400, -1.0f, 0.4f, 1.0f, explosionSphere, true));
-    sparkGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -0.1f, 0.0f)));
+    sparkGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -0.1f)));
     sparkGroup->addModifier(SPK::Friction::create(0.4f));
 
     SPK::Ref<SPK::Group> waveGroup = system->createGroup(1);
@@ -194,7 +196,7 @@ SPK::Ref<SPK::System> createSPKIrrlichtTest(const DemoTextureSet& textures)
     group->setParamInterpolator(SPK::PARAM_ANGLE, SPK::FloatRandomInitializer::create(0.0f, 2 * 3.14159f));
     group->addEmitter(emitter1);
     group->addEmitter(emitter2);
-    group->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -0.5f, 0.0f)));
+    group->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -0.5f)));
     group->addModifier(SPK::Friction::create(0.2f));
     group->setRenderer(renderer);
     return system;
@@ -213,9 +215,11 @@ SPK::Ref<SPK::System> createSPKDX9Basic(const DemoTextureSet& textures)
     emitter->setForce(0.4f, 0.6f);
     emitter->setFlow(50);
     g1->addEmitter(emitter);
-    g1->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -0.5f, 0.0f)));
+    g1->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -0.5f)));
     g1->addModifier(SPK::Friction::create(0.2f));
-    g1->addModifier(SPK::Obstacle::create(SPK::Plane::create(SPK::Vector3D(0.0f, -0.8f, 0.0f), SPK::Vector3D(0.0f, 1.0f, 0.0f))));
+    g1->addModifier(SPK::Obstacle::create(SPK::Plane::create(
+        SPK::Vector3D(0.0f, 0.0f, -0.8f),
+        SPK::Vector3D(0.0f, 0.0f, 1.0f))));
     g1->addModifier(SPK::Rotator::create());
     g1->setRenderer(renderer);
     return system;
@@ -260,27 +264,27 @@ SPK::Ref<SPK::System> createSPKDX9Rain(const DemoTextureSet& textures)
         textures.waterdrops ? textures.waterdrops : textures.point,
         SPK::BLEND_MODE_ADD);
 
-    SPK::Ref<SPK::Box> rainZone = SPK::Box::create(SPK::Vector3D(0.0f, 5.0f, 0.0f), SPK::Vector3D(10.0f, 0.0f, 10.0f));
-    SPK::Ref<SPK::StraightEmitter> rainEmitter = SPK::StraightEmitter::create(SPK::Vector3D(0.0f, -1.0f, 0.0f));
+    SPK::Ref<SPK::Box> rainZone = SPK::Box::create(SPK::Vector3D(0.0f, 0.0f, 5.0f), SPK::Vector3D(10.0f, 10.0f, 0.0f));
+    SPK::Ref<SPK::StraightEmitter> rainEmitter = SPK::StraightEmitter::create(SPK::Vector3D(0.0f, 0.0f, -1.0f));
     rainEmitter->setZone(rainZone);
     rainEmitter->setFlow(3000.0f);
     rainEmitter->setForce(5.0f, 10.0f);
     SPK::Ref<SPK::Group> rainGroup = system->createGroup(10000);
     rainGroup->setRenderer(rainRenderer);
     rainGroup->addEmitter(rainEmitter);
-    rainGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -2.0f, 0.0f)));
+    rainGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -2.0f)));
     rainGroup->addModifier(SPK::Friction::create(0.7f));
 
     SPK::Ref<SPK::Group> dropGroup = system->createGroup(22000);
     dropGroup->setLifeTime(0.05f, 0.5f);
     dropGroup->setRenderer(dropRenderer);
-    dropGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, -2.0f, 0.0f)));
+    dropGroup->addModifier(SPK::Gravity::create(SPK::Vector3D(0.0f, 0.0f, -2.0f)));
     dropGroup->addModifier(SPK::Friction::create(0.7f));
     dropGroup->addEmitter(SPK::SphericEmitter::create(
-        SPK::Vector3D(0.0f, 1.0f, 0.0f),
+        SPK::Vector3D(0.0f, 0.0f, 1.0f),
         0.0f,
         0.2f * 3.14159f,
-        SPK::Point::create(SPK::Vector3D(0.0f, 0.01f, 0.0f)),
+        SPK::Point::create(SPK::Vector3D(0.0f, 0.0f, 0.01f)),
         true,
         -1,
         0.1f,

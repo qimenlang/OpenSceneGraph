@@ -155,6 +155,6 @@
 ## 9. 已知限制
 
 - 编辑器聚焦在 **SPARK 1.x 风格固定管线 GL 渲染路径** 与 IO，与项目最终运行时（核心模式opengl、自定义 Shader）可能仍有差异，**最终以引擎内效果为准**。  
-- **EmitterAttacher** 等复杂修饰器新建时可能是默认空引用，暂不支持；  
+- **EmitterAttacher** 等复杂修饰器新建时可能是默认空引用，暂未完整支持；  
 - **SPKTestIrrlicht_Controllers** 与不带后缀的版本在编辑器里基底相同，部分 Irrlicht 控制器未暴露到 UI。
 
