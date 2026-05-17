@@ -1,0 +1,1588 @@
+Triton Release History
+
+Version 4.65 March 13, 2026
+- Fix GLSL error in god rays shader
+
+Version 4.64 December 7, 2025
+- Added support for Visual Studio 2026 (new vc145 libraries & DLL's)
+- Updated to CUDA 13.1 (you may need to update your NVidia drivers!)
+
+Version 4.63 June 26, 2025
+- Further fixes for jagged artifacts when using use-mesh=no and 
+  ellipsoid-double-precision=yes in WGS84 environments. This is a common
+  configuration when using extremely high zoom levels.
+
+Version 4.62 June 25, 2025
+- Fix for ellipsoid-smooth-horizon setting
+- Added adjust-mesh-position-for-zoom config setting (off by default.) This
+  recenters the radial grid to center it along where the near clip plane
+  intersects the ocean, focusing its density where it is needed the most.
+  This can help a little when dealing with high zoom levels. Be sure to
+  use this in conjunction with ellipsoid-double-precision=yes.
+- Fix unnecessary precision loss in geocentric geometry when using
+  ellipsoid-double-precision=yes. This avoids jaggy artifacts when running
+  with use-mesh=no in WGS84 mode.
+
+Version 4.61 June 11, 2025
+- Eliminate use of gl_FragColor outside of user-functions.glsl, enabling use of
+  gl_FragData[] for MRT when using OpenGL 2.0 mode
+
+Version 4.60 May 1, 2025
+- ARM64 support for Windows 11 (offered as a separate SDK download) - limited 
+  to OpenGL / OpenCL only
+- Fix shader errors under Microsoft OpenGL compiler
+
+
+Version 4.59 January 21, 2025
+- Disable UBOs on AMD cards when using OpenGL versions below 4.5.
+
+Version 4.58 October 31, 2024
+- Added user_decal_depth hook into user-functions.glsl to allow modifying the
+  depth values written by decals.
+- Added config setting bypass-override-position-on-depth-pass (on by default)
+  which prevents custom code for log depth buffers etc. from affecting the
+  depth texture used by decal effects
+- Note that if you are integrating a log depth buffer or similar scheme, you
+  will need to specify your depth function in both overridePosition in
+  user-vert-functions.glsl and user_decal_depth in user-functions.glsl.
+  (only supported in OpenGL)
+
+Version 4.57 September 27, 2024
+- Fix spray effects when using patch shaders
+
+Version 4.56 September 13, 2024
+- Fix bug where simulation is not updated if overridden FFT array is used with
+  no simulated wind
+- Add Ocean::GetFFTInputArray() method to retrieve Triton's internal inverse FFT
+  wave model
+
+Version 4.55 September 12, 2024
+- Fix ability to build TritonCUDA under Visual Studio 2022 17.10 / MSVC 19.40 using 
+  older CUDA releases (for best driver compatiblity)
+- Fix crash in Ocean::ClearFFTInputArray()
+- Fix memory leak if Ocean::OverrideFFTInputArray() is called repeatedly
+
+Version 4.54 December 5, 2023
+- Ship wakes now affect height queries from Ocean::GetHeight! This is based on a parallel
+  simulation of ship wakes on the CPU based on summed circular waves, which may not 
+  exactly match the visual representation, but is still realistic. If you don't need
+  this feature, it may be disabled with wakes-affect-height-queries in Triton.config.
+  You can also affect its fidelity with the wake-wave-generation-period setting.
+- Fix distance height queries are affected by circular waves
+
+Version 4.53 November 13, 2023
+- Use vc143 DLL's with Visual Studio 2022
+- Fix compile err in VS2022 due to deprecation of binary_function
+
+Version 4.52 July 25, 2023
+(Windows-only release; all fixes associated with DirectX)
+- Ensure wake foam is not reflective in DX11
+- Fix per-fragment prop wash appearance in DX11
+- Prevent "stretching" of prop wash over time in DX11
+
+Version 4.51 June 12, 2023
+- Fix incorrect default settings for OpenGL near and far clip planes
+- Make sure license warning dialog boxes in Windows are displayed in the foreground
+
+Version 4.50 March 22, 2023
+- Rebuilt fftss library on Windows with vc14 to avoid linker warnings
+- Fix a couple of compiler warnings
+
+Version 4.49 March 10, 2023
+- Updated build tools & installer for Windows
+
+Version 4.48 February 9, 2023
+- Fix orientation of skybox in the osgTritonSample
+- Add underwater effects to the osgTritonSample
+
+Version 4.47 August 4, 2022
+- New Visual Studio 2022 support; see new vc143 library and DLL directories if selected
+  at SDK installation.
+- Visual Studio 2010-2013 support removed (due to Microsoft's Effects11 library dropping it.)
+  Contact support@sundog-soft.com for a copy of version 4.46, which includes legacy compiler
+  support, if you need it.
+- Visual Studio 2022 (vc143) uses CUDA 11.7, which now requires NVidia driver 516.01 or newer on Windows, 
+  or 515.43.04 on Linux. The vc14 builds still use CUDA 11.1, as NVidia dropped support for
+  Visual Studio 2015 after 11.1.
+
+Version 4.46 April 20, 2022
+- Experimental Ocean::GetBatchHeight() method added, for efficient querying of many
+  height queries at once when using OpenGL.
+
+Version 4.45 February 23, 2022
+- Added optional explicitCameraPosition argument to Camera::SetCameraMatrix and 
+  Environment::SetCameraMatrix.
+
+Version 4.44 November 29, 2021
+- Added support for GL_R32F height maps
+- Clears up some potential issues on shutdown
+- Reduce resource usage if IPP or OpenCL is explicitly disabled via config
+
+Version 4.43 November 15, 2021
+- Added Ocean::SetWaterModel / GetWaterModel to allow changing water model on the fly
+
+Version 4.42 October 19, 2021
+- Added Ocean::GetWavesIntersection() method, which offers accurate intersections
+  against the ocean surface even for oblique ray angles. If your intersection rays
+  are roughly perpendicular to the ocean surface, you will get much better performance
+  and good accuracy by continuing to use Ocean::GetHeight() instead.
+
+Version 4.41 September 1, 2021
+- Fix edge case at prime meridian
+
+Version 4.40 August 13, 2021
+- Fix orientation of volumetric decals & rotor wash in WGS84 coordinate systems
+- Improve view of volumetric decals & rotor wash when within the decal volume
+
+Version 4.39 June 29, 2021
+- Improved appearance of spray on wave crests, by scaling spray particles based
+  on the wind speed. See new config settings ft-scale-spray-with-wind and
+  fft-spray-particle-size-ref-speed to adjust this behavior if needed.
+- Changed default spray transparency (fft-spray-transparency) and foam brightness
+  (foam-blend) to 0.5
+- Reduced default choppiness (fft-choppiness) to 1.5 to prevent waves curling
+  over themselves in extreme conditions
+
+Version 4.38 May 28, 2021
+- Update documentation to clarify integration steps for osgEarth
+
+Version 4.37 March 1, 2021
+- Make ship wake foam consistent for flat OpenGL oceans
+- Ship wake foam is now tied to wake displacement instead of the surface normal
+  (creates brighter foam at the wake crest)
+
+Version 4.36 October 12, 2020
+- Updated x64 targets to use CUDA 11.1 on vc11-14, offering support of the new
+  RTX 30x cards. This means NVidia driver version 456.38 or newer is now required 
+  for CUDA support with these build targets! (Windows-only release; on Linux simply
+  rebuild against the latest CUDA Toolkit.)
+
+Version 4.35 July 16, 2020
+- Updated x64 targets to use CUDA 11.0 on vc11-14. This means NVidia driver version
+  450.36.06 or newer is now required for CUDA support with these build targets!
+  (Windows-only release)
+
+Version 4.34 March 12, 2020
+- Removed special-case logic for the NO_RENDERER renderer within Ocean::GetHeight().
+  You must provide a Camera instance to GetHeight() that is consistent with the Camera
+  of any visual scene you are trying to sync with when using NO_RENDERER now.
+
+Version 4.33 December 25, 2019
+- Migrate to open-source OpenCL libraries for 64-bit targets (no longer dependent 
+  on AMD's abandoned APP SDK, and now OpenCL works on all platforms - not just AMD!)
+  Requires OpenCL 2.0 support.
+- Fix Triton Preview Tool to still work when SilverLining is not installed.
+
+Version 4.32 December 13, 2019
+- Fix leeward dampening effect when UBO's are active
+
+Version 4.31 December 11, 2019
+- Prevent use of UBO's on Intel HD Graphics (they are not compatible)
+
+Version 4.30 December 10, 2019
+- Roll back decals.fx shader (DirectX rotor wash / decal effects) as it had some
+  compatibility issues (Windows-only release)
+
+Version 4.29 November 28, 2019
+- Fix use of deprecated function in CUDA support
+- Fix internal depth map in DirectX11 when not using Camera objects
+- Allow for viewports not at 0,0 for decals & rotor wash in DirectX11
+
+Version 4.28 October 25, 2019
+- Windows-only release
+- The Triton Preview Tool is back (in 64-bit)
+
+Version 4.27 October 24, 2019
+- Updated x64 targets to use CUDA 10.1 on vc11-14. This means NVidia driver version 
+  426.0 or newer is now required for CUDA support! But it is faster and works better 
+  on newer NVidia cards. x64 on vc10 still uses CUDA 9.1 as NVidia dropped vc10
+  support.
+- CUDA support dropped for 32-bit targets on vc11-14 (if you need 32
+  bit support, contact support@sundog-soft.com for a copy of the 4.26 installer
+  that uses CUDA 6.5 for 32-bit targets.)
+- Removed Triton Preview Tool until we can update it to 64-bit.
+- Fixed inconsistent capitalization of the trit_modelview shader uniform (this 
+  caused problems for some people trying to use it within user shaders.)
+
+Version 4.26 September 5, 2019
+- Fix Ocean::SetPatchMatrix() in DirectX9
+
+Version 4.25 August 27, 2019
+- Windows-only release
+- Fixes project settings on Windows sample projects to ensure compatibility with
+  Visual Studio 2017 and 2019. Note that vc140 libraries no longer work in 
+  Visual Studio 2017+ when "whole-program optimization" and "link-time code generation"
+  are enabled in the project settings for the application linking them in.
+
+Version 4.24 August 13, 2019
+- Improve GLSL shader compatibility with some drivers
+- Update Intel Integrated Performance Primitives to version 2019 Update 4
+- Improve Linux build compatibility (fix GL_CLAMP deprecation)
+
+Version 4.23 May 20, 2019
+- Add 64-bit build of C# DLL
+
+Version 4.22 March 16, 2019
+- Fix to properly re-initialize tidal streams and wakes
+  when ocean quality changes
+- Ability to toggle rotor wash decals at runtime
+
+Version 4.21 March 8, 2019
+- Fix reflection map API to properly handle different cameras
+
+Version 4.20 February 28, 2019
+- Apply fog effects to decals & rotor wash
+
+Version 4.19 February 22, 2019
+- Fix Z anomaly at edges of prop wash
+
+Version 4.18 January 23, 2019
+- Fix depth sorting of particles in DirectX with reverse depth buffers
+
+Version 4.17 January 4, 2019
+- Improve handling of ocean updates with multiple cameras
+
+Version 4.16 December 19, 2018
+- Fix user shaders with decals in OpenGL
+
+Version 4.15 November 14, 2018
+(Linux-only release)
+- Fix Linux path to CUDA / OpenCL / etc. shared objects
+
+Version 4.14 November 5, 2018
+- per-fragment-prop-wash is now always on by default.
+- Improve accuracy of height queries in BETTER and BEST ocean quality mode, by
+  taking into account the "detail displacement" effect that exists in these modes.
+  For the fastest and most accurate results however, set the config setting
+  detail-displacement-intensity = 0
+- Detail displacement is now disabled if your FFT is not GPU-accelerated.
+
+Version 4.13 November 1, 2018
+- Fix Ocean::GetHeight()'s intersection point when using NO_RENDERER and a 
+  flat coordinate system.
+
+Version 4.12 October 17, 2018
+- Fix potential crash at shutdown when using height maps
+- Update GLEW to latest version in samples
+
+Version 4.11 October 16, 2018
+- Remove last remnants of the long-deprecated Gerstner wave model.
+
+Version 4.10 October 10, 2018
+- Fix bug with multi-threaded rendering and wake effects that could lead to a hang.
+
+Version 4.09 August 30, 2018
+- Fix bug with vertex array management
+- Fix Linux path to CUDA / OpenCL / etc. shared objects
+
+Version 4.08 August 23, 2018
+- Fix some Linux build issues with CUDA (released for Linux SDK only)
+
+Version 4.07 July 17, 2018
+- Improve compatibility with orthographic projection matrices
+- Allow destruction of Environment object before Ocean objects (although this is not recommended)
+
+Version 4.06 June 7, 2018
+- Fix tiling artifacts at high altitude associated with UBO use
+
+Version 4.05 June 6, 2018
+- Accelerate use case of multiple cameras that are near each other.
+- Modify docs and samples for multi-threaded rendering to call UpdateSimulation() on each camera
+  no matter what (to ensure correct wake effects with different views.)
+
+Version 4.04 April 27, 2018
+- Fix wake effects when rendering multi-threaded views
+
+Version 4.03 April 24, 2018
+- Fix Version.h header file
+- Include freeglut in the Windows evaluation SDK so samples may be built
+- Fix issue with multiple cameras where one may be treated as underwater (when it isn't)
+
+Version 4.02 April 16, 2018
+- Update OSG samples for OSG 3.6.0
+- Fix skybox in OSG Reflection sample
+- Fix potential crash when calling Ocean::GetShaderObject(WATER_DECALS)
+
+Version 4.01 April 4, 2018
+- Apply the alpha channel of planar reflection maps in flat coordinate systems under DirectX.
+- Added Ocean::OverrideFFTInputArray() and Ocean::ClearFFTInputArray(). These may be used to
+  assume complete control over Triton's wave model, but don't try using them unless you really
+  know what you're doing!
+- Improved appearance of sky boxes in sample applications.
+
+Version 4.00 February 27, 2018
+- Full support of multi-threaded command list generation for different views in OpenGL and DirectX. 
+  See the new section in the docs, and the new multi-threaded samples in the Samples directory of the 
+  SDK. Taking advantage of this will require some changes to your integration code.
+- Sample applications for Visual Studio are now 64-bit instead of 32-bit 
+  (The SDK still provides both 32 and 64 bit libraries and DLL's if you need them)
+- Support for Visual Studio 2003, 2005, and 2008 removed.
+- Fix some DirectX 11 resource leaks.
+
+Version 3.91 February 10, 2018
+- 64-bit targets for Visual Studio 2010, 2012, 2013, and 2015/2017 now build against CUDA Toolkit 9.1.
+  This should fix a reported crash in VR on NVidia systems, and give a little performance boost as well.
+  If you are building Triton from source, be sure to install CUDA Toolkit 9.1 for these targets. You can
+  install CUDA Toolkit 9.1 alongside CUDA Toolkit 6.5 (in fact you should so you can still build for 32-bit.)
+  This means Triton now requires NVidia driver 388.19 or newer for CUDA support on 64-bit targets.
+  Also be sure to update your client distributions to include the new CUDA 9.1 DLL's in resources/dll64
+- Fix return value of intersection point in Ocean::GetHeight()
+- Fix computation of choppiness on returned height queries
+- Some code cleanup in the new, experimental OpenGLMultipleContexts sample
+
+Version 3.90 November 28, 2017
+- The option use-uniform-buffer-objects default is true (yes)
+- The option cache-uniforms is obsolete and has been removed
+- New option: wake-sprays-batched-draw-opengl. Default is 'yes'. This will draw wake spray particle
+  systems in one draw call. Depending on your driver/card, this may not work. In which case, set this to 'no'
+- Support for OpenGL multi-threaded, multi-streams has now been added:
+ - In VC 12: OpenGLMultipleContextsSample demonstrates usage of multiple streams/threads. 
+   - This sample is still subject to changes
+   - The sample currently works with the caveat that these 2 need to be set: 
+     avoid-opengl-stalls = yes
+     fft-texture-update-frame-delayed = yes
+ - Added Ocean::Initialize(void* context, const Camera* camera);
+ - Various internal refactoring
+ - Added the following functions to Camera (needed/used for OpenGL multi-threaded/multiple-streams rendering)
+   -Camera::GetName
+   -Camera::SetName
+   -Camera::SetViewport
+   -Camera::GetViewport
+   -Camera::SetRenderTarget
+   -Camera::GetRenderTarget
+ - Added the following functions to Environment:
+   -Environment::CreateOpenGLStream(void);
+   -Environment::DestroyOpenGLStream(Stream* stream);
+   -Environment::ExecuteOpenGLStream(Stream* stream);
+   -Environment::ResetOpenGLStream(Stream* stream);
+- Eliminated various redundant as well as needless locks in OpenGL, DX9, DX11
+- Fixes to not have various configuration values be read possibly each frame
+- Shader code has been collated in some places
+- Fixed bug with DX 9 wake sprays
+- Fixed reloading of shaders
+- Fixed hdr clamp issue in OpenGL
+
+Version 3.83 September 18, 2017
+- Various fixes when UBO's are enabled (wakes, decals)
+- Fix issues with user shaders and decals
+- Various internal refactoring in preparation for Triton 4
+
+Version 3.82 July 24, 2017
+- Fix crash on tidal streams
+
+Version 3.81 July 23, 2017
+- This update is NOT backward compatible - user shaders must be updated, and wakes must be set up differently!
+  Read below.
+- Fix divide by zero exception
+- Added arguments to the "user_diffuse_color()" function - BE SURE TO UPDATE YOUR USER SHADERS IF YOU HAVE ANY!
+- Improvements to double precision OpenGL shaders (used when ellipsoid-double-precision is "yes")
+- Added configuration variable "ellipsoid-smooth-horizon" to enable/disable smooth horizon calculations.
+- Fixed and optimized the smooth horizon code.
+- Add "user_horizon()" function in the shader - BE SURE TO UPDATE YOUR USER VERTEX SHADERS IF YOU HAVE ANY!
+- Update/Fix the Reverse Depth code used to calculate the projected grid matrix.
+- Prop wash improvements in OpenGL, DX9, and DX11.
+- Added hull wake effect in DX11.
+- Spray improvements in OpenGL, DX9, and DX11. Added max particle lifetimes. NOTE: The WakeGeneratorParameters
+  class has changed! Bow spray settings have been moved into a vector of SBowSprayEmitter objects, allowing
+  for separate bow spray emitters with their own offsets.
+- Experimental OpenGL 4.5 renderer added with expanded support for bindless graphics. See comments in 
+  resources/Triton.config for use-gl-bindless-textures, use-gl-bindless-uniform-buffer-objects,
+  and use-gl-bindless-vertex-buffers for details.
+- user_lighting function signature changed in the user shaders for OpenGL to pass in shininess - BE
+  SURE TO UPDATE YOUR USER SHADERS IF YOU HAVE ANY!
+- Thread safety much improved in OpenGL now, in addition to DirectX. 
+
+Version 3.80 May 12, 2017
+- Improved prop wash effects in OpenGL
+- Push & pop all client attributes in OpenGL
+
+Version 3.79 February 22, 2017
+- Make sure dependencies for new Preview tool are installed
+- Improvements to foam on ship wakes
+
+Version 3.78 February 10, 2017
+- New Camera class introduced for supporting concurrent Ocean drawing. See new samples for 
+  an example of usage, and documentation. In short, drawing methods in Triton have a new
+  Camera object you should pass in if you plan on rendering more than one Camera at a time.
+- Added Ocean::MoveDecal()
+- More accurate height queries in geocentric mode if NO_RENDERER is used.
+
+Version 3.77 December 1, 2016
+- Added adjust-mesh-switch-with-zoom config setting to control whether the mesh
+  switch altitude is affected by Ocean::SetZoomLevel().
+- Fix projected grid projection in DX9 / DX11
+- Use double precision WGS84 grid projection in DX11
+- Prevent potential infinite loop while checking for GL errors in debug builds
+
+Version 3.76 November 2, 2016
+- Add CMake build support for Windows (only with full source code licenses.) It's
+  still easier to just use the Visual Studio project files we provide, though, if
+  you can.
+- Avoid artifacts at horizon with projected grid
+- Fix discontinuities in DirectX when crossing projected grid / flat mesh border
+
+Version 3.75 October 24, 2016
+- Added enable-renderer-object-names Triton.config setting, which uses
+  glObjectLabel for identifying our shaders within NSight and similar tools.
+
+Version 3.74 October 18, 2016
+- Fix "live object" leaks in DX11
+- Properly declare Ocean::SetClipDistances / GetClipDistances with _cdecl
+
+Version 3.73 October 6, 2016
+- Fix edge case with fog in HDR
+- Fix edge case with transparency causing flickering on horizon
+
+Version 3.72 September 23, 2016
+- Added decal-floating-point-depth config option for extra precision in decal application
+- Fixed small resource leak in DX11 compute shader FFT implementation
+- Add autoFlip parameter to Ocean::GetHeight()
+
+Version 3.71 September 3, 2016
+- Restore compatibility with Direct3D9Ex devices
+- Support OpenCL + OpenGL 3.2+ contexts on AMD cards
+
+Version 3.70 September 2, 2016
+- Add pDisableWash parameter to WakeGenerator::Update
+- Don't issue height callbacks when an invalid ocean intersection test is encountered
+- Fix issue with wakes after deleting and recreating the ocean
+- Support OpenCL + DirectX11 on AMD cards
+
+Version 3.69 August 23, 2016
+- Added shader-default-depth config setting
+- Don't force copying all mip levels of height map in DX11
+- Ensure first prop wash segment fades to 0
+- Added Ocean::SetClipDistances / GetClipDistances
+
+Version 3.68 August 17, 2016
+- Cache uniform locations for particle systems in OpenGL
+- Draw ocean successfully if first frame's time value is 0
+
+Version 3.67 August 9, 2016
+- Handle overlapping Kelvin wakes better in OpenGL/flat mode.
+- Fix double refraction effect in DX11
+
+Version 3.66 July 29, 2016
+- Fix typo in particles-traditional-blend code.
+
+Version 3.65 July 28, 2016
+- Better avoid horizon artifacts when in projected grid mode
+- Handle reverse depth buffers in DX11
+- Fix spray particle blend mode in DX11
+- Add particles-traditional-blend config setting
+
+Version 3.64 July 26, 2016
+- Don't clamp specular highlights when HDR is on
+- Add ellipsoid-double-precision config option for OpenGL
+- Better handling of mesh resolution in geocentric coords
+- Throw an error if trying to initialize an Environment with no active GL context
+- Protect against overly high prop wash texture coordinates over time
+
+Version 3.63 July 12, 2016
+- Update to Visual Studio 2015 Update 3
+
+Version 3.62 June 22, 2016
+- Optimize case of multiple views with CUDA
+- Added ellipsoid-double-precision config setting (helps with precision issues when zooming
+  in on WGS84 water from high altitudes, if set.)
+
+Version 3.61 May 18, 2016
+- Tone down brightness of Kelvin wake waves on DirectX / WGS84 oceans.
+- per-fragment-prop-wash config option now works on DX9 and DX11.
+- Handle intersecting prop wash trails better if per-fragment-prop-wash is enabled.
+- Added Environment::SetWaterTransparency() and GetWaterTransparency()
+- Added optional context parameters to drawing methods for early support of DX11 deferred contexts
+
+Version 3.60 May 16, 2016
+- Added Environment::SetCurrent() and Environment::GetCurrent() to simulate a current
+  that causes prop wash trails to drift.
+- Protect against possible crash in GetHeight() when not using GPU acceleration
+
+Version 3.59 May 9, 2016
+- Add new fft-enable-force-device and fft-force-device-id config settings to force CUDA
+  to run on a specific GPU
+- Allows CUDA acceleration on multiple oceans/contexts/devices with one GPU! (OpenGL + DX11 only)
+
+Version 3.58 April 23, 2016
+- Fix Ocean::SetPatchMatrix() on DX11
+
+Version 3.57 April 5, 2016
+- Don't statically allocate STL objects, to ensure compatibility with custom Allocators.
+
+Version 3.56 March 23, 2016
+- Fix potential height query discrepancy in geocentric modes
+
+Version 3.55 March 3, 2016
+- Curve planar mesh for low-altitude water surface in geocentric based on mean
+  Earth radius instead of equatorial
+- Added avoid-opengl-stalls config setting
+
+Version 3.54 February 23, 2016
+- Fix god rays shader compilation issue on some Linux drivers
+
+Version 3.53 February 9, 2016
+- Add support for GL_LUMINANCE16F_ARB or GL_RGB*F height maps
+- Fix spray particle size when zoomed in
+
+Version 3.52 January 28, 2016
+- Perfect frequency & direction of waves added via Environment::AddSwell()
+- Added Ocean::SetMaximumWavePeriod() to allow enforcing an upper bound on wind wave
+  period (period = 2PI / angular frequency)
+- Added wave-time-adjustment config setting to allow accounting for drift over time
+  relative to external wave models that must be synchronized to Triton's visuals
+
+Version 3.51 January 18, 2016
+- Fix decal culling when using multiple viewports
+- Built Visual Studio 2015 libraries against VS 2015 Update 1
+- Fix build setting issue with 64-bit Multi-threaded Effects11 library
+- Fix direction of tidal stream decal effect
+
+Version 3.50 January 14, 2016
+- Better support multi-GPU AMD/ATI systems
+- Added Environment::RotateDecal method
+- Handle UNC network paths in default resource loader
+
+Version 3.49 January 7, 2015
+- Read decal-depth-offset setting each frame so you can modify it at runtime
+- Update builds to Visual Studio 2012 Update 5
+
+Version 3.48 December 14, 2015
+- Force environment map to use LOD 0
+- Fix issues with projected grid with reverse depth buffers
+
+Version 3.47 November 10, 2015
+- Don't use point sprites unless forced via config settings.
+- Add spray-use-point-sprites config setting to adjust that behavior.
+
+Version 3.46 November 6, 2015
+- Ocean::UpdateSimulation() now also updates ship wakes.
+- Fix rotation on decals.
+
+Version 3.45 November 3, 2015
+- Apply rotor wash / impact waves to height queries performed with NO_RENDERER renderer
+- Don't affect rotor wash / impact waves by distance from camera in NO_RENDERER case
+
+Version 3.44 November 2, 2015
+- Fix potential crash in non-GPU-accelerated GetHeight calls.
+- Fix OpenGL 3.2+ shaders
+
+Version 3.43 October 30, 2015
+- Added bow-wake-size-multiplier and stern-wake-size-multiplier config settings for 
+  adjusting the default size of the bow and stern Kelvin wake effects.
+- Added bowWakeMultiplier and sternWakeMultiplier fields to WakeGeneratorParameters,
+  allowing the scale of Kelvin wake effects to be adjusted on a per-wake basis.
+
+Version 3.42 October 28, 2015
+- Prevent clipping on small decals in non-Y-up coordinate systems.
+
+Version 3.41 October 17, 2015
+- Added Version.h public header and system to maintain it
+- Ocean::GetHeight() will still work if you accidentally pass in a point at or below sea level
+- Speed up Ocean::GetHeight() calls.
+
+Version 3.40 October 9, 2015
+- Added Ocean::SetReflectionScale() to adjust the mix of reflection and refraction if desired.
+
+Version 3.39 October 5, 2015
+- Don't multiply the planar height switch altitude by the zoom factor.
+- New spray texture
+
+Version 3.38 September 5, 2015
+- Improve foam effect in DirectX
+- Simulate "bubbles" - lighter areas in turbulent spots.
+
+Version 3.37 August 25, 2015
+- Fix inconsistencies in DirectX Kelvin wakes
+
+Version 3.36 August 25, 2015
+- Remove dependency on a valid camera position for Ocean::GetHeight() to work
+- Add optional intersectionPoint parameter to Ocean::GetHeight()
+- Fix display of breaking waves
+
+Version 3.35 August 20, 2015
+- Smooth velocity on rotor wash used to fade out decal effect with velocity
+- Remove unnecessary hacks in the OSG height map sample
+- Fix spray appearing over low-lying areas when using a height map
+
+Version 3.34 August 8, 2015
+- Turn off CUDA sync for better performance
+- Include 32-bit d3dcompiler DLL's in OSG samples (be sure to get the 64-bit versions if you're
+  building for 64-bit!)
+- Fix potential crash in DX11 at high altitudes
+
+Version 3.33 August 7, 2015
+- Fix foam in flat coordinate systems when breaking waves are disabled in OpenGL
+- Tweak sample apps; ensure they run in Windows 10
+
+Version 3.32 August 3, 2015
+- Prevent crashes if using WakeGenerators created with defunct Oceans
+- Fix ocean intersections when height maps are not in use
+
+Version 3.31 July 28, 2015
+- Added support for Visual Studio 2015 (vc14)
+- Updated Visual Studio 2103 builds to use Update 5
+- Speed up Ocean::ReloadShaders()
+- Added support for compressed height maps.
+- Added support for user-defined height map methods on CPU and GPU.
+- Fixed bug with version string being after user string in god ray shader.
+- Added a getHeight in particle.glsl that looks like the ones in the other shaders.
+- Changed user_diffuse_color input parameters. 
+- Added user_get_depth function in user-vert-functions.glsl
+- Don't try to clear out OpenGL errors on shutdown when in DirectX mode
+
+Version 3.30 July 22, 2015
+- Don't process impacts if velocity <= 0
+- Fix prop wash in non-standard world units
+- Clear out unhandled GL errors before deleting the Ocean
+
+Version 3.29 June 26, 2015
+- Handle NaN's in Ocean::IsCameraAboveWater
+
+Version 3.28 June 20, 2015
+- Fix spray with extreme sea level settings
+- No longer pass vertices that fail the projected grid into the overridePosition
+  user shader function (simplifies log depth buffer integrations)
+
+Version 3.27 June 16, 2015
+- Added overridePosition() function into user-vert-functions.glsl. Take note if
+  you are maintaining your own user-vert-functions file! This provides a useful
+  hook for things like logarithmic depth buffer integration.
+- Fix CMake files for OpenSceneGraph samples under Visual Studio 2013.
+- Update Torque3D example to work with latest T3D and Triton.
+
+Version 3.26 June 2, 2015
+- Updated to CUDA 6.5 (except for Visual Studio 2008, which
+  remains on CUDA 6.0.) This means driver version 340.29 or newer
+  is now required on NVidia systems for CUDA acceleration.
+- Allow TritonCUDA to build using vc120 toolset on Visual Studio 2013
+- Fix height queries done outside the range of the last-submitted height map
+- Add Visual Studio 2013 support to OpenSceneGraph samples
+
+Version 3.25 May 28, 2015
+- Improve compatibility with NVidia NSight
+- Remove unnatural clamping of alpha in planar reflection map
+- Add fft-enable-sync setting
+
+Version 3.24 May 20, 2015
+- Fix clipping of scaled decals in non-Y-up coordinate systems.
+- Cap clearing of texture units at 32
+
+Version 3.23 May 12, 2015
+- Fix issues with wake waves with non-default world units.
+
+Version 3.22 May 9, 2015
+- Fix shader compilation error if prop backwash is disabled via config.
+- Fix shader compilation error if max wake wave settings are set to 0.
+- Fix a couple of issues with custom world units in wake simulation.
+- Fix OpenSceneGraph reflection sample code under Unix systems.
+
+Version 3.21 May 7, 2015
+- Prop wash now dissipates over time, as well as over distance. See new
+  propWashFadeTime parameter in WakeGeneratorParameters. The default value
+  is given by the prop-wash-default-fade-time Triton.config setting.
+- Prop wash can also dissipate with wave conditions. See new 
+  prop-wave-height-fade Triton.config setting.
+
+Version 3.20 May 2, 2015
+- Correct the reflectivity of distant water for varying sea states
+  (shader hackers take note: the slopeFoamMap going into the fragment shaders now
+  contains a surface normal in RGB and foam value in A. Previously RG was
+  the X and Y slopes and B was the foam.)
+- Disable breaking wave effect entirely when breaking wave amplitude is 0
+- Increase evaluation time to 15 minutes
+- Add support for volumetric decals when rendering your own geometry. See new decalPass
+  parameter on Ocean::SetPatchShader() and Ocean::UnsetPatchShader(), and updated 
+  OpenGL patch example for guidance (as well as the documentation.)
+
+Version 3.19 April 28, 2015
+- Added Triton.config settings for opengl-near-clip, opengl-far-clip, directx-near-clip,
+  and directx-far-clip. These allow you specify a different range of projected Z values
+  for your application's projection matrix, if you're doing something unusual. For example,
+  reversed floating point depth buffers in OpenGL.
+
+Version 3.18 April 15, 2015
+- Fix inconsistencies between high-altitude and low-altitude DirectX shaders
+- Fix CUDA acceleration with NO_RENDERER renderer
+
+Version 3.17 April 10, 2015
+- Prevent specular highlights on water from oversaturating from moonlight or other dim light
+  sources.
+- Tighten up specular highlights to have a more realistic width
+- Fix OpenGL 3.2 shader compilation
+
+Version 3.16 April 9, 2015
+- Optimizations to wake spray particles
+- Optimizations to choppy wave spray particles
+- Enforce alpha threshold on reflection map texture to prevent alpha bleeding
+- Add Environment::SetWaveBlendDepth() and Environment::GetWaveBlendDepth() to allow decoupling
+  of underwater fog density and the depth at which coastal blending starts taking place.
+
+Version 3.15 April 2, 2015
+- Allow runtime changing of mesh-switch-altitude
+- Add sternWaves parameter to WakeGeneratorParameters, to allow disabling of stern Kelvin wakes.
+- Add bowWave parameter to WakeGeneratorParameters, to allow disabling of bow wakes.
+
+Version 3.14 March 20, 2015
+- Added flags to Ocean::ReloadShaders() to allow finer-grained control over which shaders are reloaded.
+- Added extra parameters to writeFragmentData() user shader function for deferred pipelines
+- Allow double-slashes at the beginning of resource paths (to handle Windows server paths)
+- Properly delete God Rays shader program when shutting down or reloading shaders
+- Clear GL errors prior to getting height data, so we don't misreport app errors as our own.
+- Fix GL errors on AMD hardware
+
+Version 3.13 March 8, 2015
+- Fix OpenGL 3.2+ shader linking
+- Change user-intercept() in user-vert-functions.glsl to take in the local position that may be
+  transformed safely by trit_modelview, and to not be called in the case of a discarded vertex
+
+Version 3.12 March 6, 2015
+- Added writeFragmentData() to user-functions.glsl. This will allow you to redirect output
+  to your own render targets for deferred rendering, order independent transparency, etc.
+- Fix height queries when no height map is in use.
+
+Version 3.11 February 24, 2015
+- More UBO fixes for OpenGL (if use-uniform-buffer-objects = yes)
+
+Version 3.10 February 20, 2015
+- Fix appearance of Kelvin wake foam in WGS84 coordinate systems.
+- Fixed code for uniform buffer objects in OpenGL. Set use-uniform-buffer-objects = yes
+  for a bit of a speedup.
+
+Version 3.09 February 6, 2015
+- Fix use of useAddDllDirectory parameter on ResourceLoader constructor.
+- Added Environment::SetDepthMap() method as an alternative to SetHeightMap().
+- Further speedups to handling of OpenGL height map transfers when height-map-copy-use-pbo = yes
+
+Version 3.08 January 27, 2015
+- Make height map transfers faster under OpenGL when height-map-copy-use-pbo = yes
+
+Version 3.07 January 23, 2015
+- Fine tune breaking waves appearance
+- Expose god ray and decal shader program ID's
+- Add Environment::SetUserDefinedVertString and SetUserDefinedFragString for prepending your own text to our shaders
+- Add SetDebugMsgCB to allow callbacks when debug messages are generated
+- Prefix all shader uniforms with trit_ to prevent conflicts when extending our shaders
+- Prevent clipping of water surface at high roll & offset of the horizon
+
+Version 3.06 January 10, 2015
+- Fix OpenGL uniform caching if multiple Environments are present
+- Improve visual quality of breaking waves effect
+- Fix OpenGL error generated each frame
+- Apply fog to spray particles
+
+Version 3.05 December 11, 2014
+- Improve appearance of rotor wash waves
+- Add per-fragment-prop-wash config option for smoother, but slower prop wash effects
+  (OpenGL only.) auto-per-fragment-prop-wash may also be set to automatically turn
+  this on only if the ocean quality is set higher than "good".
+
+Version 3.04 December 4, 2014
+- Remove wake effects on ships with zero velocity.
+- Avoid use of _setlocale() on Windows (thread safety issue)
+- Don't use CFUserNotificationDisplayAlert at all on Apple; too many compatibility issues.
+- Never call glBindFramebuffer(0) to ensure proper operation with rendering to user framebuffers.
+
+Version 3.03 November 13, 2014
+- Take near clip plane into account when rendering decals
+- Take rotation into account when deciding if the camera is inside a decal
+- Add tidal-stream-animation-scale setting
+- Don't use vertex arrays for god rays in OpenGL 2.0
+- Add float user_cloud_shadow_fragment() user function for GLSL
+- Visual Studio 2013 libraries now built with Visual Studio 2013 Update 4
+
+Version 3.02 November 6, 2014
+- Add option for animated decal textures on tidal stream effects
+- Add Ocean::SetGodRaysFade
+- Prevent GL errors when testing for extensions in OpenGL 3.2+
+- Fixes for OpenGL 3.2+
+
+Version 3.01 October 31, 2014
+- Disable uniform buffer objects by default, due to driver problems with Intel HD Graphics. 
+  You can re-enable them with the use-uniform-buffer-objects setting in triton.config, and 
+  it does provide a speedup. (Affects OpenGL only)
+- Add enable-specular-sparkle option in Triton.config; adds a negative LOD bias to specular
+  highlights in the distance.
+- Improve appearance of high sea states at high altitudes.
+- Set wind of 0.1 m/s instead of 0 at sea state 0 (to look more natural.)
+- Improve use of resolution of ocean mesh at low altitudes.
+- Add max-wake-generator-distance config setting and wake-generator-distance-threshold, to 
+  help performance if you have hundreds or more wakes at once.
+
+Version 3.0 October 11, 2014
+- Add Ogre 1.9 sample code
+
+Version 2.99 October 10, 2014
+- Improve detail of the water surface when viewed from high altitudes
+
+Version 2.98 September 28, 2014
+- Better specular calculation in OpenGL
+- Prefix all OpenGL shader uniforms with trit_ (NOTE! If you are using user functions, you'll
+  need to update the names of any Triton-supplied uniforms you're using accordingly.)
+- Removed the long-deprecated Gerstner water model
+- Added user-vert-functions.glsl file to provide a hook into the ocean vertex shader for setting
+  user varying params etc.
+- Breaking wave & wake tweaks
+- No reflections where wake foam is present.
+- Added Environment::SetSunIntensity() for controlling specular highlights at runtime
+
+Version 2.97 September 23, 2014
+- Add Ocean::SetLinearColorSpace()
+- Fix DirectX WGS84 rendering
+
+Version 2.96 September 12, 2014
+- Maintain separate default refraction colors for use when an environment map is or isn't present
+- Add new config settings detail-displacement, detail-displacement-factor, and fresnel-approximation
+- Protect against negative height map values
+- Restore OpenGL 3.2+ culling direction after drawing projected grid
+- Protect against crash when deleting an un-initialized ocean
+- Make specular highlights look better in the distance
+- Add Ocean::SetQuality() / Ocean::GetQuality() and new quality parameter in Ocean::Create()
+- Change default water model to JONSWAP
+
+Version 2.95 September 5, 2014
+- Protect against creating WakeGenerators before an ocean has been created
+- Protect against deleting an Ocean, then WakeGenerators, before calling WakeGenerator::Update()
+
+Version 2.94 September 1, 2014
+- Further tune specular highlights
+- Change default values for breaking wave steepness
+- Tune appearance of breaking waves
+- Add Environment::SetZoomFactor() API
+- Reduce default mesh grid resolution on Mac
+
+Version 2.93 August 26, 2014
+- Many visual improvements: tweaked water color, added double-refraction effect, 
+  tweaked specular lighting, additional texture and geometry detail.
+- Extend default displacement damping distance 10x for more detail in the distance
+- Make spray more dense.
+- Add leftHanded parameters to Environment methods that take a wind direction, to ensure 
+  proper wave motion in left-handed coordinate systems
+- Tune appearance of foam
+
+Version 2.92 August 16, 2014
+- Reduce tiling artifacts on breaking waves
+- Fix leak in TGALoader
+- Tone down god rays. 
+- Take light source intensity into account with god rays. 
+- Turn on hi-res foam by default.
+
+Version 2.91 August 6, 2014
+- Switch to exp2 fog from exp fog
+- Fix potential flash from prop wash in DX9/DX11
+
+Version 2.90 July 30, 2014
+- Add Ocean::SetPatchMatrix() to speed up drawing of multiple patches per scene.
+- Prevent tiling at high altitudes.
+- Fix WGS84 mode with DirectX
+- Added hi-res-foam option (off by default)
+- Add num-detail-octaves option, adds more small wave detail to the ocean surface with
+  little performance cost.
+- Increased intensity of specular highlights
+
+Version 2.89 July 16, 2014
+- Make sure texgen is disabled on every texture unit prior to rendering in OpenGL.
+- wake-fade-in-time will be honored for Kelvin wake waves.
+- Add specular highlights when underwater
+- New underwater god rays feature
+
+Version 2.88 June 29, 2014
+- Perfect the height of swell waves
+- Update to CUDA Toolkit 6.0. You may need to update your NVidia drivers.
+- Removed CUDA support from Visual Studio 2005 libraries as a result. CUDA 6 is only for 2008+
+- NOTE! The cufft library in CUDA 6 throws a "first chance exception" upon initialization 3 times
+  on some systems when using Visual Studio. This is safe to ignore. Just hit "continue", or turn 
+  off breaking on exceptions in your debug/exceptions menu. This doesn't affect anything when
+  running outside of a visual studio debugger.
+- Fix use of multiple Ocean objects with DX11 compute shaders.
+- Fix OpenGL invalid value warnings when using an Ocean with enableBreakingWaves set to false.
+- New breaking wave algorithm; handles wave direction more accurately.
+- Explicitly set all texture unit bindings to NULL in OpenGL when done rendering the ocean.
+- Automatically scale mesh-size config setting with a custom WorldUnits scale.
+- Disable use of OpenMP by default.
+- Fix compliation error with newer versions of the AMP APP SDK
+
+Version 2.87 May 20, 2014
+- Make gravity force configurable via wave-gravity-force config setting.
+- Make swell phase offset configurable via swell-phase-offset config setting.
+- Improve the OSGDynamicHeightMap sample.
+- Add new TidalStreamWake class, for simulating wakes from tidal streams on fixed objects like
+  buoys and bridge piles.
+- Add new "leeward dampening" feature in OpenGL (off by default - see leeward-dampening option in Triton.config).
+  This allows you to dampen waves on the leeward sides of ships automatically.
+- Fixed rotor wash decal effect to prevent flicker at very high framerates
+
+Version 2.86 May 6, 2014
+- Added vVertex_Projection_Space to user_lighting shader function; useful for things like forward-plus lighting.
+
+Version 2.85 May 1, 2014
+- Always enable depth tests when drawing decals
+- Fade out rotor wash decal texture as the parent object picks up velocity.
+  Threshold may be controlled with wash-decal-speed-limit
+- Prevent cube map lookups for reflections below the horizon
+- Fix lighting on circular rotor wash waves
+- Split out min and max wave height config settings between kelvin and circular wakes
+
+Version 2.84 April 26, 2014
+- Work around potential CUDA driver crash
+- Replace internal use of atof() with a locale-independent replacement
+
+Version 2.83 April 23, 2014
+- Disable UBO's on non-Windows platforms due to sketchy driver support
+- Don't bother computing wave FFT's if there is no wind or swell
+- Improve selection of CUDA device on OpenGL (can make a big peformance difference on multi-GPU systems.)
+- Improve handling of sea state 0
+
+Version 2.82 April 19, 2014
+- Fix inability to use CUDA after destroying & recreating the Ocean
+
+Version 2.81 April 19, 2014
+- Restore 3D Kelvin wakes on ATI/AMD cards (by disabling UBO's on them - that's the real driver issue.)
+- Fix anomaly on Kelvin wakes where texture edge was visible at higher altitudes
+
+Version 2.80 April 17, 2014
+- Protect against numerical instability in Tessendorf model at low sea states
+- Various performance improvements, especially when using CUDA and OpenGL
+- Add thread-safe config option
+
+Version 2.79 April 15, 2014
+- Add config settings to adjust swell wavelengths and wave heights used in SetDouglasSeaScale
+- Disable Kelvin wakes on AMD/ATI cards when using OpenGL due to apparent driver bug
+- Split out wake-wave-scale config setting into wake-kelvin-wave-scale and wake-circular-wave-scale
+- Wake scale now also scales minimum wave height, to ensure system remains stable.
+
+Version 2.78 April 12, 2014
+- Improve spray effects.
+- Make detail more prominent.
+- Make swell amplitudes more accurate.
+- Add phase offset parameter to Environment::AddSwell().
+
+Version 2.77 April 9, 2014
+- Fix discontinuity in height queries at the edges of tiles.
+
+Version 2.76 April 7, 2014
+- Protect against edge case in height queries with CUDA or DX11.
+- Make rotor wash waves more likely to appear.
+
+Version 2.75 April 4, 2014
+- Add fft-texture-update-frame-delayed config setting; updates displacement map etc.
+  on the next frame following FFT computations to prevent blocking.
+- Add mac-specific config settings for default-grid-resolution-mac and spray-force-point-sprites-mac
+- Prevent wake waves from growing unbounded
+- Fix MacOS build issue
+
+Version 2.74 March 29, 2014
+- Make rotor wash decal effect fade with altitude
+- Move rotor wash decals appropriately for moving rotors
+- Further performance optimization
+
+Version 2.73 March 28, 2014
+- Use Uniform Buffer Objects in OpenGL
+- Cache uniform values in OpenGL
+- Make Kelvin wakes behind the ship more prominent.
+- More performance optimization work.
+
+Version 2.72 March 18, 2014
+- Further optimizations on wake processing
+
+Version 2.71 March 14, 2014
+- Added additional parameters to user_reflection_adjust in user-functions.glsl
+- Add randomness to emission of circular waves from rotor wash
+- Better selection of circular waves to render when max is hit
+- Make prop wash look better at high altitudes
+- Add settings for max-kelvin-wake-distance and max-circular-wave-distance
+- Optimize case where no wave spray is present
+- Fix crash when deleting rotor wash with decal texture after its parent ocean is deleted.
+
+Version 2.70 March 3, 2014
+- Further prevent clipping of projected grid
+- Handle case of multiple OpenCL platforms where the first isn't AMD.
+
+Version 2.69 February 27, 2014
+- Add new option to BreakingWavesParameters to automatically compute wave direction
+- Reduced switch altitude for circular mesh, to prevent aliasing from breaking waves
+- Increased max-allowable-displacement to ensure projected grid fills the viewport
+- Use two different foam texures in OpenGL when near the water
+- Cache OpenGL uniforms to improve performance
+- Improved OSGDynamicHeightMap sample.
+- Fix shader reloading when spray particles are active.
+
+Version 2.68 February 16, 2014
+- Fix OpenGL 3.2+ pure contexts
+
+Version 2.67 February 14, 2014
+- GERSTNER water model (deprecated since 2.1) removed
+- Speed up drawing of wake spray particles
+- Prevent possible crash at shutdown with CUDA & new drivers
+
+Version 2.66 February 12, 2014
+- Remove GLU dependencies on MacOS
+- Improve performance of ship wakes (up to 2X)
+- Make better use of circular mesh resolution, allowing us to decrease vertex count & increase performance.
+- Fix Kelvin wakes in DX9 / Geocentric
+
+Version 2.65 February 7, 2014
+- Tweak spray config settings.
+- Tweak appearance of Kelvin ship wakes.
+- Get decals working on MacOS.
+- Fix reflection blend adjustment on geocentric / OpenGL
+
+Version 2.64 January 23, 2014
+- Fix potential crash with CUDA new NVidia drivers
+- Fix math edge cases affecting Visual Studio 2013 / 64-bit with JONSWAP or PIERSON_MOSKOWITZ wave models.
+
+Version 2.63 January 18, 2014
+- New decal texture feature for adding floating textures on the water. See Ocean::AddDecal().
+- Greatly improved rotor wash effect. See new useDecals parameter on RotorWash constructor.
+- More polish of foam texture
+- Increase noise in distance
+
+Version 2.62 January 15, 2014
+- New foam texture
+- Fix Ocean::ReloadShaders() when user-supplied shader programs are in use.
+- Restore compatibility with PS 2.0 cards under DirectX9
+- Add user function for modifying the reflection color
+
+Version 2.61 January 9, 2014
+- Added Environment::SetViewport(). Users may optionally call this to inform Triton of the current viewport,
+  saving it from a potential pipeline stall resulting from querying the current viewport size.
+- Store textures as compressed in OpenGL.
+- OpenGL performance improvements
+- Correct representation of swell wave amplitudes
+
+Version 2.60 December 20, 2013
+- Enforce maximum new spray particles from waves per frame to help performance. Adjust with fft-spray-budget.
+- Optimize intersection tests further.
+- Optimize CUDA wave simulation further.
+
+Version 2.59 December 12, 2013
+- Include Windows 8.1 DirectX shader compiler DLL
+- Added new prop wash width multiplier to WakeGeneratorParams. Defaults to 1.5X the beam width.
+- Prevent divide by zero in DirectX Kelvin wake shaders
+- Update to Visual Studio 2012 Update 4
+
+Version 2.58 December 5, 2013 (Windows only release)
+Fix C# sample
+
+Version 2.57 November 23, 2013 (Linux / Mac only release)
+Make source compatible with MacOS 10.9
+
+Version 2.56 November 22, 2013
+Fix wind wave directions in certain angles when using JONSWAP or PIERSON_MOSKOWITZ
+Fix grid-double-sided = no option
+Orient geocentric water plane relative to ellipsoid instead of sphere
+
+Version 2.55 November 20, 2013
+Fix issue with fft-grid-size with custom world units
+Add HDR #ifdef support in ellipsoidal patch shader
+Fix underwater mode resolution with conventional mesh / patch shader
+
+Version 2.54 November 16, 2013
+Visual Studio 2013 (Desktop) support added
+
+Version 2.53 November 14, 2013
+Add hybrid projected grid / conventional mesh model to DX9 and DX11 (in addition to OpenGL)
+Enable hybrid model by default (use-mesh setting)
+Fix C# files
+Fix wakes on OpenGL patch shaders
+Improve continuity of prop wash on DX9 and DX11
+Performance enhancements with processing of ship wake effects
+Cull wake spray effects when not in view
+
+Version 2.52 November 10, 2013
+OpenGL / flat projected grid computed relative to camera to preserve precision with large coordinates
+Prevent numerical issues with confused seas in high wind waves when using Tessendorf waves.
+Lower precision threshold for matrix inversion (helps with large orthographic projections)
+New config options for OpenGL to use a conventional 3D mesh instead of a projected grid below a certain altitude
+Various performance tweaks
+New parameter on Ocean::GetHeight() to avoid mutex lock, and added Ocean::Lock and Unlock so you can wrap
+many GetHeight calls with a single mutex lock. Can help a lot with performance if lots of height queries are done.
+Add Ocean::ReloadShaders() for OpenGL.
+When using patch shaders in WGS84 or SPHERICAL coordinates, we now expect your transformed vertices to be relative to the
+camera position instead of relative to 0,0,0 in order to preserve precision.
+Added WATER_SURFACE_PATCH to Ocean::GetShaderObject().
+
+Version 2.51 October 28, 2013
+New methods for extending Triton's shaders with OpenGL.
+Ocean::GetShaderObject() may now return the spray shader programs as well as the water shader
+New Ocean::Create() method may take a list of OpenGL shader objects to link into all internal shader programs
+Water and particle lighting / fog / tone mapping broken out into user-functions.glsl file, where users may
+introduce their own lighting etc. without modifying our base shaders
+Protect against divide by zero's and NaN's in intersection tests
+
+Version 2.50 October 16, 2013
+Improve spray particle precision with moving cameras
+
+Version 2.49 October 11, 2013
+Add alpha-mask config setting to disable writing to alpha channel
+Avoid edge case (literally) with projected grid when camera is very close to sea level
+Fix memory leak with prop washes
+
+Version 2.48 October 5, 2013
+Fix potential crash when doing height queries with non-GPU-accelerated FFT implementations
+Make water surface double sided
+Changes to preserve grid resolution better
+Changed default grid-horizon-offset to -0.001
+
+Version 2.47 September 30, 2013
+Fix compatibility with newer AMD / ATI drivers
+Don't switch to underwater fog unless the camera is actually below a wave
+Prevent camera from being exactly parallel to the water surface in geocentric
+
+Version 2.46 September 28, 2013
+Fix projected grid orientation when underwater in geocentric mode.
+Added OpenSceneGraph sample for dynamic height map generation.
+Added Torque3D integration sample.
+
+Version 2.45 September 26, 2013
+Add grid-double-sided config setting (helps out cameras inside wave troughs)
+Fix debug messages when point sprites are used for particles
+Reduce discontinuities in prop wash textures in OpenGL
+
+Version 2.44 September 24, 2013
+Account for choppiness when positioning wake effects in geocentric mode
+Fix application of wind direction - the wind direction specified now represents the direction
+the wind is coming from, clockwise from North.
+
+Version 2.43 September 12, 2013
+Account for wave dampening in shallow water in height queries.
+
+Version 2.42 September 6, 2013
+Improvements to prop wash effects - prop wash will always remain anchored to one position on the ship,
+and initial segments will be positioned better.
+
+Version 2.41 August 29, 2013
+Protect against divide by zero's with a surge depth of 0
+
+Version 2.4 August 9, 2013
+Reworked the interface for WakeGenerator parameters. See WakeGenerator documentation.
+
+Version 2.32 August 1, 2013
+Fix suppression of spray in shallow water when using DX9 height maps.
+Fix positioning of secondary Kelvin wakes.
+Force prop wash LOD up if the max number of segments is hit.
+Fix bug with reading max-prop-wash-opengl and max-prop-wash-directx11 settings.
+
+Version 2.31 July 17, 2013
+Add separate wind and swell wave directions to Environment::SetDouglasSeaScale()
+
+Version 2.3 June 28, 2013
+Major refactor of water disturbances (wakes, rotor wash, impacts, prop washes.)
+Kelvin wakes now modeled as displacements from interference patterns instead of
+collections of circular waves.
+A consistent random seed is set when Ocean::Create is called, to ensure identical
+oceans across multiple channels.
+Added RandomNumberGenerator::SetRandomSeed() method.
+Fix jitter in prop wash in geocentric mode
+Update to Visual Studio 2012 SP3
+
+Version 2.25 June 9, 2013
+Introduce intersection-vector-length-above-water and intersection-vector-length-projection config settings.
+
+Version 2.23 June 7, 2013
+Protect against crash when Ocean fails to create.
+Fix intersection tests when sea level is non zero.
+Protect against mutex left locked in Ocean::GetIntersection
+
+Version 2.22 May 24, 2013
+New fft-precision-limit config setting to avoid precision errors in JONSWAP at low wind speeds.
+Fix Gerstner waves (although they are deprecated...)
+Make intersection vector length configurable via intersection-vector-length
+
+Version 2.21 May 20, 2013
+Fix cube map reflections in Ogre sample.
+
+Version 2.20 May 17, 2013
+Optimize Ocean::GetHeight(). Add parameters for low-resolution queries and for ignoring wake waves.
+
+Version 2.19 May 8, 2013
+Remove OpenMP entirely from main libraries, to regain compatibility with Visual Studio Express.
+Build with Visual Studio 2012 Update 2
+
+Version 2.18 April 28, 2013
+Separate specular shininess for OpenGL vs. DirectX
+Improve thread safety
+Switch to IPP FFT automatically if CUDA/OpenCL/Compute Shaders fail at runtime
+Add config setting do-height-map-copy to optionally disable system memory copy of height map
+Add optional hull spray effects in WakeGenerator
+Fix particle transparency in DX9
+
+Version 2.17 April 25, 2013
+Properly initialize mutex object on RedHat / CentOS
+Support separate wave decay rates for wakes, rotor wash, and impacts. 
+Decay rotor wash waves faster. 
+Discard small waves sooner.
+
+Version 2.16 April 17, 2013
+Enable OpenMP only in release targets.
+Prefer CUDA to compute shaders on NVidia
+Clamp foam to 1.0
+Fix spray velocity scale on WakeGenerators
+
+Version 2.15 April 11, 2013
+Ocean::GetHeight() and Ocean::GetIntersection() now return false if the intersection is over terrain.
+Fix breaking waves in geocentric / opengl.
+Fix OpenGL 3.2 geocentric waves.
+Dampen the normal map as well as wave displacements in shallow water when breaking waves are enabled.
+Fix prop wash on DX9 patch shader
+Dissipate prop wash based on distance from wake generator instead of based on associated wave's radius.
+Enforce minimum prop wash segment length
+Prevent prop wash segments from disappearing prematurely
+Make sure everything derives from MemObject
+Account for prop offset when culling wake waves
+Expose spray size scale in WakeGenerator
+Wake LOD improvements
+
+Version 2.14 April 6, 2013
+No longer use OpenMP in main library on Windows (to gain compatibilty with Visual Studio Express Edition)
+More horizon line fixes
+
+Version 2.13 April 5, 2013
+More horizon line fixes
+Fix wake wave sorting
+
+Version 2.12 April 4, 2013
+Add spray scaling to Impact constructor
+Add Ocean::SetDisplacementDampingDistance() to control displacment dampening at runtime
+Tweak spray effects
+Fix horizon line position when camera is rolled close to 90 degrees
+
+Version 2.11 March 28, 2013
+Fix swell wave amplitudes (to be 1/2 wave height)
+Added swell-multiplier config setting if you need to override that
+Add new WakeGenerator parameters to position prop wash and optionally disable it
+Added Ocean::SetDepthOffset() to allow handling of z-fighting at shorelines
+Sort wake waves first by wake generator, then by distance, to prevent discontinuities in wakes.
+Add WakeGenerator::SetLODDistance() to remove wake detail with distance, enabling more simultaneous
+wakes at once.
+Further wake visual improvements.
+Add parameters to WakeGenerator for bow wake effects.
+
+Version 2.1 March 15, 2013
+Add high frequency detail to waves (on PS3.0+ capable cards.)
+Add new PIERSON_MOSKOWITZ and JONSWAP wave models
+Added swell simulation from distant storms. See Environment::AddSwell etc.
+Added Douglas Sea Scale support with Environment::SetDouglasSeaScale (specifies
+local wind waves and swells separately)
+Add fetch length to WindFetch objects, and hook it up to the JONSWAP model
+Updated to AMD APP SDK 2.8
+Added "particles-pure-additive-blend" config setting for use with HDR rendering
+Fix spray particle suppression using height maps in geocentric worlds
+Fade particles in/out more gradually
+Gerstner water model is now declared deprecated
+Height maps are now copied to system memory when Environment::SetHeightMap() is called,
+to produce accurate height queries close to shore. Make sure you are only calling SetHeightMap()
+when the texture actually changes significantly to preserve performance.
+Factor breaking waves into height queries
+Update to Visual Studio 2012 SP1
+
+Version 2.03 March 7, 2013
+Make sure WakeGenerators don't attempt to reference a deleted Ocean
+Add useAddDllDirectory option in ResourceLoader.
+
+Version 2.02 March 4, 2013
+Remove all waves from a WakeGenerator when it is deleted
+
+Version 2.01 March 1, 2013
+Prevent use of height maps outside of the area they explicitly define
+Fix wake propeller backwash on slow moving ships and ships moving parallel to each other
+
+Version 2.0 February 28, 2013
+Added Environment::SetHeightMap() - you may now provide a height map to Triton, used for blending the water with terrain
+and preventing spray from coming up out of the ground near the shore.
+Added Environment::SetBreakingWavesParameters() - if you provided a height map, breaking waves at shorelines may be enabled
+Fixed height queries at north and south poles
+Fixed alignment of height queries with the water surface in geocentric mode
+Fixed Gerstner model
+Protect against reading uninitialized height values in the first frame under CUDA
+Added optional drawWater and drawParticles parameters to Ocean::Draw(), allowing you to draw the water surface and spray
+particles independently.
+Change planar-offset setting to 0 to avoid precision issues
+Make fft-displacement-damping-distance runtime configurable via Environment::SetConfigOption()
+Always pass full path names to SetDLLDirectory() (ensure CUDA etc. DLL's are found)
+Flatten water geometry as it becomes transparent in shallow water
+Regain compatibility with Pixel Shader 2.0 model cards under DX9
+Add Ocean::SetPlanarReflectionBlend() to allow run-time adjustment of planar reflection strength.
+Smoothly fade new wake / rotor wash / impact waves in over the time specified by wake-fade-in-time
+Fix ray/plane intersection precision for rotor wash etc.
+Rotor wash visual improvements
+Don't use point sprites for spray on NVidia / OpenGL (improves spray appearance when close)
+Improve ship wakes by keeping transverse waves convex
+Improve accuracy of ship Kelvin wake angle & wavelength
+Eliminate "cliffs" inside wakes
+Added Ocean::ComputeReflectionMatrices() to simplify setup for planar reflections
+Multiple Ocean::UpdateSimulation() calls with the same timestamp will be ignored
+CUDA now works with Visual Studio 2012
+Fix discovery of FFT DLL's under Visual Studio 2012
+Made it easier to recompile Triton to strip out DirectX dependencies (define DIRECTX9_FOUND=0 and DIRECTX11_FOUND=0 and remove DX libs)
+Fix deletion of CUDA resources under OpenGL
+Only add to the DLL search path instead of replacing the current working directory when possible
+Blend out the seam in the middle of propeller backwash
+New propeller wash texture
+Tuned impact spray appearance
+
+Version 1.73 February 6, 2013
+Fix error in CMake files
+Add support for dongle-based licenses
+
+Version 1.72 January 30, 2013
+Fix bug where wash-spray-generation-period and wash-wake-generation-period were not honored.
+New Ogre sample code based on a standalone app.
+Added ability to render particle-based spray when using patch shaders (see new params on Ocean::UnsetPatchShader)
+Fix wake effects in DX9 patch shader
+Add Ocean::IsCameraAboveWater()
+Fix foam fading with distance in DX9
+Ensure ocean renders properly when no wind at all has been set
+Take sea level into account when calling Ocean::GetIntersection()
+Don't emit wakes and spray from stationary WakeGenerators.
+Fix handling of DX9 device loss with CUDA
+Fix positioning of spray in geocentric mode
+Tweak rotor wash effect to avoid initial wave peak
+
+Version 1.71 January 10, 2013
+Fix use of multiple Ocean objects in one process with GPU acceleration
+Improve discovery of CUDA device for DirectX9
+
+Version 1.7 January 5, 2013
+Add new RotorWash class for spray + waves from localized wind sources.
+Add new Impact class for impacts hitting the water, producing spray and waves.
+Improved accuracy of height queries
+Added Environment::EnableOpenMP() to allow users to restrict Triton's CPU usage.
+Automatically push / pop any active shader program in OpenGL 2.x
+Config setting shader-filename-prefix may be used to prepend a string to the shader filenames,
+enabling user modifications to our shaders to co-exist with the default ones.
+
+Version 1.61 December 28, 2012
+Add NO_RENDERER initialization option on Environment, for physics-only servers.
+Improve wake appearance; added wake-wave-scale config setting.
+Don't emit debug errors when a config entry isn't found.
+
+Version 1.60 December 13, 2012
+Further improvements to geocentric precision and planar approximation
+
+Version 1.59 December 10, 2012
+Added HDR parameter to Environment::Initialize(), which can be used to disable all color clamping
+Added planar-adjust config setting, which can be used to account for error when switching between ellipsoid and planar earth representations
+Fix jitter at low altitudes in geocentric mode
+Properly handle north and south poles in geocentric mode
+
+Version 1.58 November 19, 2012
+Fix memory leak in OpenCL usage
+
+Version 1.57 November 17, 2012
+Fix wave directions in shallow water
+
+Version 1.56 September 28, 2012
+Read lighting and spray config settings each frame to allow runtime modification
+Limit discontinuities in height queries resulting from local choppiness
+
+Version 1.55 September 26, 2012
+Increase max allowable grid expansion when close to the surface, and
+made this configurable via max-allowable-displacement setting.
+Fix DX9 device resets with patch shaders.
+
+Version 1.54 September 15, 2012
+Fix DirectX11 patch shader vertex layout
+Fix use of patch shaders in multi-threaded rendering under Linux
+
+Version 1.53 September 14, 2012
+Fix CUDA with multi-threaded rendering
+
+Version 1.52 September 13, 2012
+Fix application of model matrix in patch shaders
+Add FPS output in OpenGL sample for benchmarking
+
+Version 1.51 September 12, 2012
+Improved foam and spray calculation
+Added multi-gpu support for CUDA (see fft-enable-multi-gpu)
+Sped up CUDA code over 150% on some systems
+Don't re-upload H0 data to GPU if it didn't change
+Don't crash on Ocean creation failure under DX9
+
+Version 1.5 August 22, 2012
+Added Ocean::SetPatchShader() and Ocean::UnsetPatchShader() methods - with these, you can have
+Triton shade your own geometry to transform any user-drawn grid into 3D water with reflections, 
+refractions, and foam - instead of rendering an infinite ocean with Ocean::Draw().
+Added new samples for rendering user patches.
+Fixed usage of smoothstep function in HLSL to address aliasing in DX9
+Split out physics updates from rendering; see new optional Ocean::UpdateSimulation() method.
+This can be used to do updates in another pass or thread from rendering.
+Updated OpenSceneGraph samples to call the new UpdateSimulation() method form its update thread.
+Added Visual Studio 2012 support (no CUDA support for 2012 from NVidia yet though.)
+Added C# support (see the new CSharpSample in the Samples folder and refer to the readme.txt there)
+Automatically add trailing slash to resources path if not given and clean up slashes
+Fix crash at shutdown in Ogre sample
+
+Version 1.42 August 1, 2012
+Output message to console or debug log when evaluation SDK time limit is reached.
+Added Ocean::SetLoopingPeriod to enable animation loops of a specified time
+Explicitly enable depth writes under OpenGL & DX9 (fixes rendering under Ogre / OpenGL)
+Prevent crash when normalizing zero vectors (ie, if a direction vector of (0,0,0) were
+passed in for a WakeGenerator.)
+Fix sea level when non-zero in test for above water
+Fix CUDA under x64 builds
+Improve appearance of propeller wash on tight curves
+Added new config setting fft-use-sqrt-approximation; set this to "no" to get accurate 
+wave heights at high wind speeds at the cost of some performance.
+If enable-kelvin-wakes is set to "no", don't factor in wakes in Ocean::GetHeight().
+
+Version 1.41 June 3, 2012
+Add support of Visual Studio 2003.NET for OpenGL and DirectX9 / Intel IPP only
+Now compiles on MacOS (using fftss only)
+Better detection of OpenGL extensions
+Updated to AMD APP SDK 2.7 and clAmdFFt 1.8.214
+Don't use OpenCL with OpenGL 3.2 core profiles (crashes inside driver on AMD)
+
+Version 1.40 May 20, 2012
+Fix deletion of config entries
+Fix simultaneous disabling of wakes and wash config in OpenGL
+Update mailing list link in installer (http://bit.ly/sundogmail)
+Zero out particle vertex buffers at initialization in OpenGL
+
+Version 1.39 May 4, 2012
+Update to CUDA 4.2 and latest APP ML
+Fix shader compilation errors under OpenGL 3.2
+Fix 64-bit builds for CUDA/Windows and OpenCL/Linux
+Shut down CUDA cleanly
+
+Version 1.38 April 29, 2012
+Added RandomNumberGenerator interface to allow apps to provide their own (useful for synchronizing channels)
+CPU usage reduced when spray is active
+CPU usage reduced when wind conditions change
+Added fft-lod-bias config setting to combat aliasing / motion artifacts
+
+Version 1.37 April 15, 2012
+Ensure the ocean extends all the way to the horizon
+Include CMake files with Windows full installer (in addition to Visual Studio solution files)
+
+Version 1.36 April 4, 2012
+Fix horizon line underwater
+Fix computation of wave height
+Eliminate runtime calls to OpenGL extension tests
+Work around driver bugs related to auto-mipmap generation
+Put grid resolution back at 512
+
+Version 1.35 March 30, 2012
+Optimize performance when wind conditions change
+Align projected grid with the horizon line
+Reduce projected grid default dimensions (thanks to the above change) - gains performance
+WakeGenerator::Update now takes an explicit direction vector. Trying to guess at it automatically wasn't sufficient.
+
+Version 1.34 February 10, 2012
+Added visualCorrelation parameter to Ocean::GetHeight() to match heights with visuals in the distance
+Ensure WakeGenerator::Update() doesn't actually do any drawing, as it could be called from a different thread 
+or context from Ocean::Draw().
+Better conservation of wake waves (to reduce anomalies from hitting the max number of wake waves in the shaders)
+
+Version 1.33 February 5, 2012
+Fix above/below water test
+Fix dark line at horizon in geocentric mode near surface
+Fix clipping of ocean when near surface in geocentric mode
+Fix undefined foam values in Gerstner mode
+Fix precision issues in DirectX geocentric mode
+
+Version 1.32 February 2, 2012
+Fix wakes in OSG reflection demo when --geocentric is on
+Improve foam appearance
+Fix various precision issues in OpenGL geocentric mode
+
+Version 1.31 January 31, 2012
+Tuned grid resolution and maximum wake height
+Added wake-kelvin-wakes config setting to disable 3D ship Kelvin wakes independently from turbulent wakes (see wake-propeller-backwash)
+Decreased default setting for max wake waves
+
+Version 1.3 January 30, 2012
+Ship wake improvements: added propeller wash effects, separate spray and wake generation points,
+and ability to simualte the beam width and ship length. See new WakeGenerator constructor for more details.
+Enabled flow control in HLSL - big speedups for DX9 and DX11!
+Split up projected grid into 32K chunks under DirectX9 to support low end systems
+Improve accuracy of height queries (takes choppiness into account now.)
+Fix potential buffer overflow in OpenGL particle systems
+Max number of wake waves visible at once now configurable by renderer, and increased for DX11 and OpenGL
+Fix orientation of projected grid when camera is inverted
+Updated to CUDA Toolkit 4.1, AMD APP SDK 2.6, and AMD APPML 1.6
+Fix OpenSceneGraph samples so they run with arbitrary working directories and do not require fftss.lib in Windows
+Fix precision issues in geocentric mode when close to the surface
+Fix translation of the ocean surface in geocentric mode
+Fix default ocean slope if unspecified in geocentric mode
+
+Version 1.23 January 9, 2012
+Fail if DX9 vertex shader model 2.0 is all that's supported. Vertex shader model 3.0 or newer is required.
+Support combination of DX9 PS 2.0 / VS 3.0 for older hardware
+Fix jitter on spray particles in geocentric coordinate systems
+Fix spray and wave orientation if Ocean::SetDepth is not called
+
+Version 1.22 January 4, 2012
+Enable shallow water translucency for DX9 and DX11
+Direct3D9Ex support added
+CMake works under Windows now, with option to not include DirectX when building.
+Fix fallback case to IPP if FFT setup fails
+
+Version 1.21 December 18, 2011
+Added Ocean::SetRefractionColor to allow changing of the ocean color at runtime
+Fix warnings from Allocator
+Added Gamebryo Lightspeed 3.2 sample code
+Fix crash if OpenGL renderer is specified with a DirectX environment
+Added Visual Studio 2005 support (except for DirectX11)
+
+Version 1.2 November 12, 2011
+Breaking waves and spray effects - toggle with Ocean::EnableSpray()
+Ocean::SetDepth now takes a surface normal as well as a depth at the camera position, allowing
+for sloping shorelines
+Water is transparent when refracted in shallow water. The underwater visibility simulated, and
+the values passed into Ocean::SetDepth, will influence this effect. Try the "beach" button in
+our demo to see it in action.
+Fix surface normal calculation in intersection tests
+Fix intersection tests when coordinates are negative
+Fix intersection tests in OpenCL
+Make waves change smoothly when wind conditions change
+Fix SimulateSeaState when using non-standard world units
+Improved the fit of the projected grid with the visible scene, increasing resolution.
+
+Version 1.14 October 27, 2011
+Beta Linux support introduced - contact support@sundog-soft.com
+Fix artifacts when rolling the camera
+Explicitly declare calling conventions and byte alignment for better project compatibility
+No longer uses ARB extensions; uses OpenGL 2.0 functions directly.
+Fix directional light in DX11
+Fix crash when using a ResourceLoader with an invalid path
+Fix scaling of projected grid when corners project to infinity
+Full source project fixes: uses DXSDK_DIR to locate the DirectX SDK; renames debug library build to Tritond.lib
+
+Version 1.13 October 15, 2011
+Removes dependency on GLEW entirely.
+Fix build settings for x64
+
+Version 1.12 October 12, 2011
+Use GLEW as a DLL to avoid multiply defined symbol link errors in other projects
+Include missing HLSL file for DirectX 11 compute shader
+
+Version 1.11 September 19, 2011
+Made waves more directional with the wind
+Include diffuse light when refracting into the ocean
+Added optional depthWrite parameter to Ocean::Draw
+Added surface normal to Ocean::GetHeight()
+Link DX11 Effects framework into 64-bit libraries
+
+Version 1.1 (revision 348) September 8, 2011
+Fixed Beaufort to wind speed calculation
+Added ship wake effects (see the new WakeGenerator class)
+Tweaked noise to reduce tiling at altitude
+New planar reflection support (see Environment::SetPlanarReflectionMap and OpenSceneGraphReflection sample)
+Added Ocean::GetHeight() method to read back the ocean surface height at any point
+Negative reflection vectors now handled better
+Fixed CUDA with Direct3D11
+Fixed computation of grid size with non-zero sea levels
+Disposes of all OpenCL resources at shutdown
+Fixed application of noise when using custom world units
+
+Version 1.01 (revison 280) August 6, 2011
+Make shaders compilable with latest Intel GPU drivers
+Fix x64 support
+Pre-allocate temporary FFT buffer for OpenCL
+Updated to AMD APP SDK 2.5 and clAmdFFT 1.4.135
+
+Version 1.0 (revision 274) August 3, 2011
+Added Ocean::GetShaderObject to allow apps to pass in their own uniforms to modified Triton shaders (enables integration with custom reflections, shadows, etc.)
+
+Version 1.0b1 (revision 272) July 23, 2011
+Initial release! Please report any issues or feature requests to support@sundog-soft.com

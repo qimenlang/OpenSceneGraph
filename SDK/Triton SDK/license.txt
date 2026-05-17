@@ -1,0 +1,71 @@
+Software Development Kit License Agreement
+
+ 
+PLEASE READ THIS AGREEMENT AND INDICATE YOUR ACCEPTANCE BY CLICKING THE "I ACCEPT/AGREE" BUTTON AT THE BOTTOM OF THIS WEB PAGE. ACCEPTANCE OF THIS AGREEMENT MEANS THAT YOU ARE BOUND BY THE TERMS OF THIS LICENSE AGREEMENT. YOU MAY NOT PURCHASE THE SOFTWARE APPLICATION UNLESS YOU ACCEPT THE TERMS OF THIS LICENSE.
+
+YOU MAY PRINT THIS PAGE OR SAVE IT AS A FILE ON YOUR COMPUTER. A COPY OF THIS LICENSE IS ALSO INCLUDED AS A "LICENSE.TXT" FILE IN THE DOWNLOADABLE FILE CONTAINING THE PURCHASED SOFTWARE. THE LICENSE INCLUDED WITH THIS SOFTWARE PACKAGE IS SUBSTANTIVELY IDENTICAL TO THIS LICENSE.
+
+License
+
+Sundog Software, LLC (“Sundog”) grants you a non-exclusive, nontransferable, license to use the Triton Software Development Kit (the “SDK”).  The SDK is comprised of sample source code (the “Sample Code”), documentation files (the “Documentation”), image resource files (the “Resources”) and an Application Programming Interface and Code Libraries (collectively, the “API”). Under this License, You may (i) use, modify, and incorporate all or portions of the Sample Code, Resources, and the API into Your own programs (the “User Programs”), (ii) distribute the Sample Code in object code format, the Resources in binary and text format, and the API linked into an executable application only as part of the User Programs; (iii) use the SDK subject to end user license agreement or conditions stated on the Documentation, respectively, and (iv) use the SDK solely for the purpose of internal development.  You may not (i) distribute the SDK as a stand-alone product without any modification; (ii) sell, sublicense, rent, loan, or lease the SDK and the Documentation to any third party; (iii) reverse engineer, decompile, disassemble or otherwise attempt to discover the source code of the SDK or (iv) breach or violate the Terms of Use subject to Section 2 of this Agreement; or (v) use the SDK and the Documentation to create any software which is substantially similar to Triton (the “Software”,) or to create commercially distributed add-ons for the X-Plane flight simulator.
+
+The SDK functionality is limited to five (5) minutes per application run.  If You want a longer run time, You may purchase a separate, per-product license code from Sundog at www.sundog-soft.com.  Such license will permit the distribution of one executable application that links in the Triton libraries, along with incremental updates to that executable application.
+
+Sundog has no obligation to provide service, defect correction, or any maintenance or support for the SDK unless such a service plan has been purchased separately.  You may purchase a 3-month service plan as part of a license purchase from Sundog at www.sundog-soft.com. Sundog anticipates that it will supply updates for enhancement to the SDK, however, Sundog is under no contractual obligation to do so.
+
+
+Terms of Use
+
+Please strictly comply with the terms set forth below under this SDK License Agreement.  The Sample Code, API and Documentation may be distributed with User Programs to Your customers under the terms of Your end user license agreement, provided it includes terms that are substantially similar to those applicable to the Sample Code and API, as described herein.  You are required to include Sundog’s copyright notices – e.g., “Portions of this software include Triton(tm) technology, and is copyrighted and is proprietary of Sundog Software, LLC” in User Programs which include all or portions of the SDK.
+
+
+Sundog Software, LLC, may list You as a customer in Sundog Software, LLC's promotional materials, website, and other marketing materials, unless you have requested confidentiality in writing to sales@sundog-soft.com and received receipt of your request.
+
+ 
+Privacy of Customer's Information
+
+Except as provided for herein, Licensor shall not disclose to third parties any personal information which Customer forwards to Licensor through the Information Entry Page. The information which the Customer forwards to Licensor through the use of the Information Entry Page shall be used solely by Licensor for the purposes of billing, advertising, and for notifying Customer of any future information pertaining to the Software Product, such as upgrade information, and Licensor may disclose Customer’s personal information to third party partners to accomplish such purposes, including without limitation, disclosing such personal information to its partners who handle bookkeeping, accounting, credit card processing, and email advertising services. Without limiting the generality of the foregoing, in the event that Licensor sells all or substantially all of its business to a third party, this Agreement may be assigned wholly to the purchaser by Licensor without notice to Customer along with all personal information which Customer has forwarded to Licensor through the Information Entry Page.   
+
+Copyright
+
+The Software Product is copyrighted material owned by Licensor and is protected by United States copyright law and by international treaties. Customer agrees that Licensor owns and holds title to the Software Product and all subsequent copies thereof regardless of the form or media, and that all title, ownership rights, and intellectual property rights in the Software Product shall remain with Licensor. Customer may not copy or otherwise reproduce any part of the Software Product except as speicifically allowed pursuant to Paragraph 4.1. Customer may physically transfer the software electronically over a network to other computers belonging to Customer but may not distribute the Software Product to others, except as enumerated in Paragraph 4.3.
+
+
+Choice of Law
+
+This Agreement shall be construed and controlled by the laws of the State of Florida and the United States. Any dispute arising out of or relating to this Agreement will be governed by the laws of the State of Florida.
+
+
+Indemnification
+
+Licensor shall not undertake to resolve any disputes or litigation on Customer's behalf involving use of the services or products described herein, and Customer agrees that it shall indemnify, hold Licensor harmless and defend Licensor against any disputes involving use of the Software Product.
+
+
+DISCLAIMER OF WARRANTIES. 
+
+The services and products provided by Licensor under this Agreement are provided "AS IS," WITHOUT WARRANTY OF ANY KIND TO CUSTOMER OR ANY THIRD PARTY, INCLUDING, BUT NOT LIMITED TO, ANY EXPRESS OR IMPLIED WARRANTIES OF MERCHANTABILITY OF THE COMPUTER PROGRAM, FITNESS FOR CUSTOMER'S PURPOSE OR SYSTEM INTEGRATION; INFORMATIONAL CONTENT OR ACCURACY; NON-INFRINGEMENT; QUIET ENJOYMENT; AND TITLE. CUSTOMER AGREES THAT ANY EFFORTS BY LICENSOR TO MODIFY ITS GOODS OR SERVICES SHALL NOT BE DEEMED A WAIVER OF THESE DISCLAIMER OF WARRANTIES. THE ENTIRE RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE PRODUCT REMAINS WITH CUSTOMER.
+
+
+LIMITATION OF REMEDIES. 
+
+UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY SHALL LICENSOR, OR ITS SUPPLIERS OR RESELLERS, BE LIABLE TO CUSTOMER OR ANY OTHER PERSON FOR ANY INDIRECT, SPECIAL, PUNITIVE, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL, LOST PROFITS, BUSINESS INTERRUPTIONS, WORK STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER PERSONAL OR COMMERCIAL DAMAGES OR LOSSES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE PRODUCT (WHETHER OR NOT DUE TO ANY DEFECTS THEREIN).  IN NO EVENT WILL LICENSOR BE LIABLE FOR ANY DAMAGES EVEN IF LICENSOR SHALL HAVE BEEN INFORMED OF THE POSSIBILITY OF SUCH DAMAGES OR SUCH DAMAGES WERE REASONABLY FORESEEABLE, OR LICENSOR WAS GROSSLY NEGLIGENT. IN NO EVENT SHALL LICENSOR'S LIABILITY EXCEED THE PURCHASE PRICE PAID BY CUSTOMER FOR THE SOFTWARE. THIS LIMITATION OF LIABILITY SHALL NOT APPLY TO LIABILITY FOR DEATH OR PERSONAL INJURY RESULTING FROM LICENSOR'S NEGLIGENCE TO THE EXTENT APPLICABLE LAW PROHIBITS SUCH LIMITATION. Some jurisdictions do not permit the exclusion or limitation of liability for consequential or incidental damages, and, as such, some portion of the above limitation may not apply to Customer. In such jurisdictions, Licensor's liability is limited to the greatest extent permitted by law.
+
+
+Export Restrictions.  
+
+Customer agrees not to export the Software Product or any copies thereof or any products utilizing the Software Product in violation of any applicable laws or regulations of the United States. Customer agrees to indemnify Licensor from liability if Customer violates any such laws or regulations.
+
+
+Force Majeure. 
+
+Licensor shall not be liable hereunder for any failure or delay in the performance of its obligations under this Agreement if such failure or delay is on account of causes beyond its control, including labor disputes, civil commotion, war, fires, floods, inclement weather, governmental regulations or controls, casualty, government authority, strikes, or acts of God, in which event Licensor shall be excused from its obligations for the period of the delay and for a reasonable time thereafter.
+
+
+Entire Agreement. 
+
+This Agreement supersedes any and all other agreements, either oral or in writing, between the parties with respect to the matters stated herein, and this Agreement contains all of the covenants and agreements between the parties with respect thereto. This Agreement may be amended or modified only by a written agreement signed by authorized representatives of both parties.
+
+
+Knowing Consent and Authority to Consent. 
+
+The parties knowingly and expressly consent to the foregoing terms and conditions. Each party is authorized to enter into this Agreement on behalf of its respective party. 
