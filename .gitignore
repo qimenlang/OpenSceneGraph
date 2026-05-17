@@ -1,4 +1,4 @@
-doc/all_Doxyfile
+﻿doc/all_Doxyfile
 doc/auto_Doxyfile
 doc/core_Doxyfile
 doc/openscenegraph.doxyfile
@@ -30,6 +30,10 @@ Makefile
 cmake_install.cmake
 install_manifest*.txt
 imgui.ini
+
+# Copied from active CMake preset build dir (see cmake.copyCompileCommands)
+compile_commands.json
+
 
 
 # Compiled Object files

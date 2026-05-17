@@ -1,4 +1,4 @@
-{
+﻿{
     "files.associations": {
         "xstring": "cpp",
         "functional": "cpp",
@@ -129,30 +129,30 @@
     "terminal.integrated.defaultProfile.windows": "Git Bash",
     "cmake.outputLogEncoding": "gbk",
     "cmake.useCMakePresets": "always",
-    //防止 CMake Tools 干扰 clangd
+    // 防止 CMake Tools 干扰 clangd；切换 preset 后仍应 Configure 一次
     "cmake.configureOnOpen": false,
     "cmake.buildBeforeRun": false,
     "cmake.enableAutomaticKitScan": false,
     "cmake.enableKitScan": false,
+  // 切换 configure preset 时自动重新 configure，并刷新 compile_commands.json 副本
+    "cmake.automaticReconfigure": true,
+    "cmake.exportCompileCommandsFile": true,
+    "cmake.loadCompileCommands": true,
+    // 将「当前 active preset」构建目录中的 compile_commands.json 复制到仓库根目录
+    // （与各 preset 的 binaryDir 对应，如 out/build/osgengine-ninja-cl、out/build/osgengine-ninja-clangcl）
+    "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
 
-    // 注意：CMake Tools 在 Windows+MSVC 下默认使用 cppvsdbg。Cursor 未注册该调试类型（微软调试组件许可限制），
-    // 侧栏 Debug 会报「cppvsdbg is not supported」。请勿在此写入 type:cppvsdbg；可用 Visual Studio 调试同一 exe，
-    // 或临时用官方 VS Code 调试，或 clang-cl 构建 + CodeLLDB。
-
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/out/build/osgengine-ninja-cl/compile_commands.json",
-    // 配置 ninja-msvc + clangd 代码跳转 
-    // 1.指定 clangd 本体
+    // --- clangd：始终读取仓库根目录的 compile_commands.json（由 copyCompileCommands 同步）---
     "clangd.path": "C:/Program Files/LLVM/bin/clangd.exe",
-    // 2.告诉 clangd：这些编译命令来自 MSVC
-       "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/out/build/osgengine-ninja-cl",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}",
         "--query-driver=**/cl.exe,**/clang-cl.exe",
         "--header-insertion=never",
-        "--completion-style=detailed",
-        "--log=verbose"
+        "--completion-style=detailed"
     ],
-    // 3.必须关掉微软的 C++ 插件 IntelliSense
+
+    // 关闭微软 C++ IntelliSense，避免与 clangd 重复诊断
     "C_Cpp.intelliSenseEngine": "disabled",
     "C_Cpp.workspaceParsingPriority": "low",
-    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.autocomplete": "disabled"
 }

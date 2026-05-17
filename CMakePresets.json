@@ -57,7 +57,8 @@
                 "BUILD_OSG_PLUGINS": "ON",
                 "BUILD_OSG_APPLICATIONS": "OFF",
                 "BUILD_OSG_EXAMPLES": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "D:\\repos\\tools\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "D:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+                
             }
         },
         {
