@@ -1,4 +1,4 @@
-#######################################################
+﻿#######################################################
 # this are setting used in SETUP_EXAMPLE macro
 #######################################################
 SET(TARGET_DEFAULT_PREFIX "example_")
@@ -174,7 +174,20 @@ IF(DYNAMIC_OPENSCENEGRAPH)
     ADD_SUBDIRECTORY(osgbindlesstext)
     add_subdirectory(RotorWashTest)
     add_subdirectory(SparkEditor)
-    add_subdirectory(TritonOcean)
+    
+    if(EXISTS "$ENV{TRITON_PATH}")
+        set(TRITON_DIR "$ENV{TRITON_PATH}")
+        message(STATUS "TRITON_DIR is ${TRITON_DIR}")
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/TritonOcean/CMakeModules")
+        find_package(Triton)        
+        if(TRITON_FOUND)
+            message(STATUS "Triton found, building TritonOcean")
+            add_subdirectory(TritonOcean)
+        else()
+            message(STATUS "Triton not found, skipping TritonOcean")
+        endif()
+    endif()
+
     IF(OSG_CPP_EXCEPTIONS_AVAILABLE)
         ADD_SUBDIRECTORY(osgunittests)
         ADD_SUBDIRECTORY(osgmemorytest)

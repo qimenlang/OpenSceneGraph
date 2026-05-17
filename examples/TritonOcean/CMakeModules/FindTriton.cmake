@@ -1,4 +1,4 @@
-# Find TRITON toolkit
+﻿# Find TRITON toolkit
 # This module defines
 # TRITON_FOUND
 # TRITON_INCLUDE_DIR
@@ -83,8 +83,44 @@ IF (MSVC_TOOLSET_VERSION EQUAL 143)
         SET(TRITON_ARCH "vc143/win32")
     ELSE ()
         message(WARNING "Unknown platform name: ${CMAKE_VS_PLATFORM_NAME}")
-        SET(SILVERLINING_ARCH "vc143/unknown")
+        SET(TRITON_ARCH "vc143/unknown")
     ENDIF ()
+ENDIF ()
+
+IF (MSVC_TOOLSET_VERSION EQUAL 145)
+    IF (CMAKE_VS_PLATFORM_NAME STREQUAL "ARM64")
+        SET(TRITON_ARCH "vc145/arm64")
+    ELSEIF (CMAKE_VS_PLATFORM_NAME STREQUAL "x64")
+        SET(TRITON_ARCH "vc145/x64")
+    ELSEIF (CMAKE_VS_PLATFORM_NAME STREQUAL "Win32")
+        SET(TRITON_ARCH "vc145/win32")
+    ELSE ()
+        SET(TRITON_ARCH "vc145/x64")
+    ENDIF ()
+ENDIF ()
+
+# Ninja + cl.exe does not set MSVC_TOOLSET_VERSION or CMAKE_VS_PLATFORM_NAME.
+IF (MSVC AND NOT TRITON_ARCH)
+    IF (CMAKE_CXX_COMPILER_ARCHITECTURE_ID STREQUAL "ARM64")
+        SET(_triton_platform "arm64")
+    ELSEIF (CMAKE_CXX_COMPILER_ARCHITECTURE_ID STREQUAL "x64" OR CMAKE_SIZEOF_VOID_P EQUAL 8)
+        SET(_triton_platform "x64")
+    ELSE ()
+        SET(_triton_platform "win32")
+    ENDIF ()
+
+    IF (MSVC_TOOLSET_VERSION)
+        SET(_triton_vc "vc${MSVC_TOOLSET_VERSION}")
+    ELSEIF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.50")
+        SET(_triton_vc "vc145")
+    ELSEIF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")
+        SET(_triton_vc "vc143")
+    ELSE ()
+        SET(_triton_vc "vc14")
+    ENDIF ()
+
+    SET(TRITON_ARCH "${_triton_vc}/${_triton_platform}")
+    MESSAGE(STATUS "FindTriton: inferred TRITON_ARCH=${TRITON_ARCH} (Ninja/non-VS generator)")
 ENDIF ()
 
 IF (MSVC71)
@@ -121,9 +157,9 @@ MACRO(FIND_TRITON_LIBRARY MYLIBRARY MYLIBRARYNAME)
     NAMES ${MYLIBRARYNAME}
     PATHS
 		${TRITON_DIR}/lib
+		$ENV{TRITON_PATH}/lib
 		$ENV{TRITON_DIR}/lib
 		$ENV{TRITON_DIR}
-		$ENV{TRITON_PATH}/lib
 		/usr/local/lib
 		/usr/lib
 		/sw/lib
