@@ -20,6 +20,7 @@ src/osgQt/__
 lib/
 bin/
 build/
+.cache/
 
 *.pc
 *.conf
