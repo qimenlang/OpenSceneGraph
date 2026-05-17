@@ -1,8 +1,9 @@
-#ifndef TRITON_DRAWABLE_H
+﻿#ifndef TRITON_DRAWABLE_H
 #define TRITON_DRAWABLE_H
 
 #include<Triton.h>
 #include<osg/Drawable>
+#include<osg/Node>
 #include<osg/TextureCubeMap>
 #include<osg/Fog>
 
@@ -38,6 +39,9 @@ public:
 
     virtual void drawImplementation(osg::RenderInfo& renderInfo) const;
 
+    /** Node whose world-space center drives RotorWash (e.g. a cube MatrixTransform). */
+    void setRotorWashSourceNode(osg::Node* node) { _rotorWashSource = node; }
+
 protected:
 
     void Setup( void );
@@ -50,6 +54,8 @@ protected:
     Triton::ResourceLoader *_resourceLoader;
     Triton::Environment    *_environment;
     Triton::Ocean          *_ocean;
+    Triton::RotorWash      *_rotorWash;
+    osg::observer_ptr<osg::Node> _rotorWashSource;
 
     osg::ref_ptr<osg::Fog> _fog;
 

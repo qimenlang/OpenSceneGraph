@@ -1,4 +1,4 @@
-// Triton OpenSceneGraph Sample Project
+﻿// Triton OpenSceneGraph Sample Project
 // Illustrates integration of Triton with an OpenSceneGraph application
 
 // Copyright (c) 2011-2012 Sundog Software LLC. All rights reserved worldwide.
@@ -7,12 +7,12 @@
 
 #include "TritonDrawable.h"
 
-
 // Create the Triton objects at startup, once we have a valid GL context in place
 TritonDrawable::TritonDrawable( osg::TextureCubeMap * _environmentMap, osg::Fog* fog )
     :_resourceLoader(0)
     ,_environment(0)
     ,_ocean(0)
+    ,_rotorWash(0)
     ,_cubeMap(_environmentMap)
     ,_fog(fog)
 {
@@ -46,6 +46,7 @@ void TritonDrawable::Setup( )
     }
 
     std::string resPath(tritonPath);
+    std::cout << "Triton path: " << resPath << std::endl;
 #ifdef _WIN32
     resPath += "\\Resources\\";
 #else
@@ -84,12 +85,19 @@ void TritonDrawable::Setup( )
     if (_ocean) {
         _ocean->EnableGodRays(true);
         setUpdateCallback(new TritonUpdateCallback(_ocean));
+        // RotorWash defaults: sprayEffects=false, useDecals=false; diameter from OpenGLPatchSample
+        _rotorWash = new Triton::RotorWash(_ocean, 30.0,true,false);
     }
 }
 
 // Clean up our resources
 void TritonDrawable::Cleanup()
 {
+    if (_rotorWash) {
+        delete _rotorWash;
+        _rotorWash = NULL;
+    }
+
     if (_ocean) {
         delete _ocean;
         _ocean = NULL;
@@ -190,9 +198,31 @@ void TritonDrawable::drawImplementation(osg::RenderInfo& renderInfo) const
                                              _cubeMap->getTextureObject( state.getContextID() )->id(), transformFromYUpToZUpCubeMapCoords );
         }
 
-        // Draw the _ocean for the current time sample
         if (_ocean) {
-            _ocean->Draw( renderInfo.getView()->getFrameStamp()->getSimulationTime() );
+            const double simTime = renderInfo.getView()->getFrameStamp()->getSimulationTime();
+
+            if (_rotorWash && _rotorWashSource.valid()) {
+                osg::NodePathList paths = _rotorWashSource->getParentalNodePaths();
+                if (!paths.empty()) {
+                    const osg::Matrixd worldMat = osg::computeLocalToWorld(paths.front());
+
+                    const osg::Vec3d rotorWorld = osg::Vec3d(0.0, 0.0, 0.0) * worldMat;
+
+                    osg::Vec3d downWorld = osg::Matrixd::transform3x3(osg::Vec3d(0.0, 0.0, -1.0), worldMat);
+                    if (downWorld.length2() > 0.0) {
+                        downWorld.normalize();
+                    } else {
+                        downWorld.set(0.0, 0.0, -1.0);
+                    }
+                    _rotorWash->Update(
+                        Triton::Vector3(rotorWorld.x(), rotorWorld.y(), rotorWorld.z()),
+                        Triton::Vector3(downWorld.x(), downWorld.y(), downWorld.z()),
+                        100.0,
+                        simTime);
+                }
+            }
+
+            _ocean->Draw(simTime);
         }
     }
 

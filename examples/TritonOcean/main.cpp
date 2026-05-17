@@ -13,6 +13,10 @@
 
 #include <osgDB/ReadFile>
 #include <osg/Fog>
+#include <osg/Geode>
+#include <osg/ShapeDrawable>
+#include <osg/MatrixTransform>
+#include <osg/Material>
 
 #include <iostream>
 
@@ -145,7 +149,7 @@ int main(int argc, char** argv)
         viewer.getCameraManipulator()->setHomePosition( center - viewVector, center, osg::Z_AXIS );
     }
 
-    viewer.setSceneData( scene );
+    viewer.setSceneData( scene.get() );
 
     // Environment map created by Skybox and passed to Triton to make reflections on waves
     osg::TextureCubeMap * environmentMap = NULL;
@@ -155,10 +159,29 @@ int main(int argc, char** argv)
     skyBox->getOrCreateStateSet()->setAttributeAndModes(fog.get());
     scene->addChild( skyBox );
 
+    // Cube carrying rotor wash; downwash is emitted from its center
+    osg::ref_ptr<osg::MatrixTransform> rotorCube = new osg::MatrixTransform;
+    rotorCube->setMatrix(osg::Matrix::translate(0.0, 0.0, 8.0));
+
+    osg::ref_ptr<osg::Geode> cubeGeode = new osg::Geode;
+    osg::ref_ptr<osg::ShapeDrawable> cubeShape = new osg::ShapeDrawable(new osg::Box(osg::Vec3(), 1.0));
+    cubeShape->setColor(osg::Vec4(0.8f, 0.2f, 0.2f, 1.0f));
+    cubeGeode->addDrawable(cubeShape.get());
+
+    osg::ref_ptr<osg::Material> cubeMaterial = new osg::Material;
+    cubeMaterial->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4(0.8f, 0.2f, 0.2f, 1.0f));
+    cubeGeode->getOrCreateStateSet()->setAttributeAndModes(cubeMaterial.get());
+    cubeGeode->getOrCreateStateSet()->setAttributeAndModes(fog.get());
+
+    rotorCube->addChild(cubeGeode.get());
+    scene->addChild(rotorCube.get());
+
     // Create Triton Waters
-    osg::Geode * geode = new osg::Geode;
-    scene->addChild( geode );
-    geode->addDrawable( new TritonDrawable( environmentMap, fog ) );
+    osg::ref_ptr<osg::Geode> tritonGeode = new osg::Geode;
+    scene->addChild(tritonGeode.get());
+    osg::ref_ptr<TritonDrawable> tritonDrawable = new TritonDrawable(environmentMap, fog);
+    tritonDrawable->setRotorWashSourceNode(rotorCube.get());
+    tritonGeode->addDrawable(tritonDrawable.get());
 
     // Set the same Light as Triton OpenGL example ...
     osg::Vec4 position(0, 1.0 / sqrt(2.0), 1.0 / sqrt(2.0), 0);
