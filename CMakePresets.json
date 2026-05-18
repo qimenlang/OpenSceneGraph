@@ -20,7 +20,7 @@
                 "BUILD_OSG_PLUGINS": "ON",
                 "BUILD_OSG_APPLICATIONS": "OFF",
                 "BUILD_OSG_EXAMPLES": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "D:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"   
             }
         },
         {
@@ -41,7 +41,7 @@
         {
             "name": "osgengine-ninja-cl",
             "displayName": "osgengine-ninja-cl",
-            "description": "将编译器用于 Visual Studio 18 2026 (x64 体系结构)，使用 Ninja 生成器, 需要cmake tools 禁用kit自动扫描",
+            "description": "将编译器用于 Visual Studio 18 2026 (x64 体系结构)",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
@@ -57,8 +57,7 @@
                 "BUILD_OSG_PLUGINS": "ON",
                 "BUILD_OSG_APPLICATIONS": "OFF",
                 "BUILD_OSG_EXAMPLES": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "D:\\repos\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
-                
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"   
             }
         },
         {
