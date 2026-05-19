@@ -7,6 +7,23 @@
 
 #include "TritonDrawable.h"
 
+#include <osg/GL>
+#include <osg/GLExtensions>
+#include <osg/State>
+
+namespace {
+
+GLuint shaderHandleToProgram(Triton::ShaderHandle handle)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    return static_cast<GLuint>(reinterpret_cast<uintptr_t>(handle));
+#else
+    return static_cast<GLuint>(handle);
+#endif
+}
+
+}
+
 // Create the Triton objects at startup, once we have a valid GL context in place
 TritonDrawable::TritonDrawable( osg::TextureCubeMap * _environmentMap, osg::Fog* fog )
     :_resourceLoader(0)
@@ -15,6 +32,9 @@ TritonDrawable::TritonDrawable( osg::TextureCubeMap * _environmentMap, osg::Fog*
     ,_rotorWash(0)
     ,_cubeMap(_environmentMap)
     ,_fog(fog)
+    ,_userRotorRadius(45.0f)
+    ,_userRotorAmplitude(0.8f)
+    ,_userRotorWaveCount(4.0f)
 {
     setDataVariance(osg::Object::DYNAMIC);
     setUseVertexBufferObjects(false);
@@ -24,6 +44,14 @@ TritonDrawable::TritonDrawable( osg::TextureCubeMap * _environmentMap, osg::Fog*
     _aboveWaterVisibility = 1E9;
     _belowWaterFogColor = Triton::Vector3(84.f / 255.f, 135.f / 255.f, 172.f / 255.f);
     _belowWaterVisibility = 1000.0;
+
+    for (int i = 0; i < 2; ++i) {
+        _userRotorCenterLoc[i] = -1;
+        _userRotorRadiusLoc[i] = -1;
+        _userRotorAmplitudeLoc[i] = -1;
+        _userRotorWaveCountLoc[i] = -1;
+        _userRotorEnabledLoc[i] = -1;
+    }
 }
 
 // Clean up our resources
@@ -85,8 +113,7 @@ void TritonDrawable::Setup( )
     if (_ocean) {
         _ocean->EnableGodRays(true);
         setUpdateCallback(new TritonUpdateCallback(_ocean));
-        // RotorWash defaults: sprayEffects=false, useDecals=false; diameter from OpenGLPatchSample
-        _rotorWash = new Triton::RotorWash(_ocean, 30.0,true,false);
+        _rotorWash = new Triton::RotorWash(_ocean, 30.0, false, true);
     }
 }
 
@@ -112,6 +139,68 @@ void TritonDrawable::Cleanup()
         delete _resourceLoader;
         _resourceLoader = NULL;
     }
+}
+
+void TritonDrawable::applyUserRotorDisplaceUniforms(osg::State& state) const
+{
+    if (!_ocean) {
+        return;
+    }
+
+    osg::GLExtensions* ext = state.get<osg::GLExtensions>();
+    if (!ext) {
+        return;
+    }
+
+    const Triton::Shaders programs[2] = { Triton::WATER_SURFACE, Triton::WATER_SURFACE_PATCH };
+    bool enabled = false;
+    Triton::Vector3 center(0.0, 0.0, 0.0);
+
+    if (_rotorWash) {
+        center = _rotorWash->GetPosition();
+        enabled = true;
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        const GLuint program = shaderHandleToProgram(_ocean->GetShaderObject(programs[i]));
+        if (program == 0) {
+            continue;
+        }
+
+        if (_userRotorCenterLoc[i] < 0) {
+            _userRotorCenterLoc[i] = ext->glGetUniformLocation(program, "trit_userRotorCenter");
+            _userRotorRadiusLoc[i] = ext->glGetUniformLocation(program, "trit_userRotorRadius");
+            _userRotorAmplitudeLoc[i] = ext->glGetUniformLocation(program, "trit_userRotorAmplitude");
+            _userRotorWaveCountLoc[i] = ext->glGetUniformLocation(program, "trit_userRotorWaveCount");
+            _userRotorEnabledLoc[i] = ext->glGetUniformLocation(program, "trit_userRotorEnabled");
+        }
+
+        if (_userRotorCenterLoc[i] < 0) {
+            continue;
+        }
+
+        ext->glUseProgram(program);
+
+        ext->glUniform3f(_userRotorCenterLoc[i],
+            static_cast<GLfloat>(center.x),
+            static_cast<GLfloat>(center.y),
+            static_cast<GLfloat>(center.z));
+
+        if (_userRotorRadiusLoc[i] >= 0) {
+            ext->glUniform1f(_userRotorRadiusLoc[i], _userRotorRadius);
+        }
+        if (_userRotorAmplitudeLoc[i] >= 0) {
+            ext->glUniform1f(_userRotorAmplitudeLoc[i], _userRotorAmplitude);
+        }
+        if (_userRotorWaveCountLoc[i] >= 0) {
+            ext->glUniform1f(_userRotorWaveCountLoc[i], _userRotorWaveCount);
+        }
+        if (_userRotorEnabledLoc[i] >= 0) {
+            ext->glUniform1f(_userRotorEnabledLoc[i], enabled ? 1.0f : 0.0f);
+        }
+    }
+
+    ext->glUseProgram(0);
 }
 
 
@@ -222,11 +311,11 @@ void TritonDrawable::drawImplementation(osg::RenderInfo& renderInfo) const
                 }
             }
 
+            applyUserRotorDisplaceUniforms(state);
             _ocean->Draw(simTime);
         }
     }
 
     state.dirtyAllVertexArrays();
 }
-
 

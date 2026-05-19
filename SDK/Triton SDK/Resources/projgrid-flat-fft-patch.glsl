@@ -61,6 +61,31 @@ void user_intercept(in vec3 worldPosition, in vec3 localPosition, in vec4 eyePos
 vec4 overridePosition(in vec4 position);
 float user_get_depth( in vec3 worldPos );
 
+uniform vec3 trit_userRotorCenter;
+uniform float trit_userRotorRadius;
+uniform float trit_userRotorAmplitude;
+uniform float trit_userRotorWaveCount;
+uniform float trit_userRotorEnabled;
+
+float user_rotor_displace(vec3 localVWorld, float fade)
+{
+    if (trit_userRotorEnabled < 0.5) {
+        return 0.0;
+    }
+
+    vec3 centerLocal = trit_basis * trit_userRotorCenter;
+    vec2 d = localVWorld.xy - centerLocal.xy;
+    float dist = length(d);
+    if (dist > trit_userRotorRadius) {
+        return 0.0;
+    }
+
+    float t = dist / trit_userRotorRadius;
+    float envelope = (1.0 - t) * (1.0 - t);
+    float rings = max(trit_userRotorWaveCount, 1.0);
+    return trit_userRotorAmplitude * cos(rings * TWOPI * t) * envelope * fade;
+}
+
 void getDepthFromHeightmap(in vec3 worldPos)
 {
     vec2 texCoord = (trit_heightMapMatrix * vec4(worldPos, 1.0)).xy;
@@ -503,6 +528,8 @@ void displace(inout vec3 v)
 
     localV.z += applyBreakingWaves(localV, fade, v);
 
+    localV.z += user_rotor_displace(localV, fade);
+
     foamTexCoords = localV.xy / trit_foamScale;
     noiseTexCoords = texCoords * 0.03;
 
@@ -528,6 +555,13 @@ void main()
 
     // Displace
     displace(worldPos.xyz);
+
+    vec3 localPos = worldPos.xyz - trit_cameraPos;
+    vec2 d = worldPos.xy - trit_userRotorCenter.xy;
+    if (length(d) < 30.0) {
+        localPos.z += 10.0;
+    }
+    worldPos.xyz = localPos + trit_cameraPos;
 
     V = (worldPos.xyz - trit_cameraPos);
 

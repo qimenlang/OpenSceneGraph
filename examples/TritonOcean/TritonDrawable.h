@@ -1,4 +1,4 @@
-﻿#ifndef TRITON_DRAWABLE_H
+#ifndef TRITON_DRAWABLE_H
 #define TRITON_DRAWABLE_H
 
 #include<Triton.h>
@@ -6,6 +6,8 @@
 #include<osg/Node>
 #include<osg/TextureCubeMap>
 #include<osg/Fog>
+
+namespace osg { class State; }
 
 struct TritonUpdateCallback : public virtual osg::Drawable::UpdateCallback {
     TritonUpdateCallback(Triton::Ocean *pOcean) : ocean(pOcean) {}
@@ -61,6 +63,18 @@ protected:
 
     Triton::Vector3 _aboveWaterFogColor, _belowWaterFogColor;
     double _aboveWaterVisibility, _belowWaterVisibility;
+
+    void applyUserRotorDisplaceUniforms(osg::State& state) const;
+
+    float _userRotorRadius;
+    float _userRotorAmplitude;
+    float _userRotorWaveCount;
+
+    mutable int _userRotorCenterLoc[2];
+    mutable int _userRotorRadiusLoc[2];
+    mutable int _userRotorAmplitudeLoc[2];
+    mutable int _userRotorWaveCountLoc[2];
+    mutable int _userRotorEnabledLoc[2];
 
 };
 
