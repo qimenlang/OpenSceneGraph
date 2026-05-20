@@ -94,10 +94,12 @@ void TritonDrawable::Setup( )
     // 5 minutes. Visit www.sundog-soft.com to purchase a license if you're so inclined.
     _environment->SetLicenseCode("Your license name", "Your license code");
 
-    // Set up wind of 10 m/s blowing North
-    Triton::WindFetch wf;
-    wf.SetWind(10.0, 0.0);
-    _environment->AddWindFetch(wf);
+    // Calm open-ocean FFT: Beaufort 0 = calm, 1 = light air (see Environment::SimulateSeaState).
+    // Replaces manual WindFetch; clears existing wind and sets sea state from Beaufort scale.
+    const double beaufortScale = 1.0;
+    const double windDirectionRadians = 0.0;
+    _environment->SimulateSeaState(beaufortScale, windDirectionRadians);
+    _environment->ClearSwells();
 
     // Set visibility
     _environment->SetAboveWaterVisibility(_aboveWaterVisibility, _aboveWaterFogColor);
@@ -113,7 +115,7 @@ void TritonDrawable::Setup( )
     if (_ocean) {
         _ocean->EnableGodRays(true);
         setUpdateCallback(new TritonUpdateCallback(_ocean));
-        _rotorWash = new Triton::RotorWash(_ocean, 30.0, false, true);
+        _rotorWash = new Triton::RotorWash(_ocean, 30.0, false, false);
     }
 }
 
