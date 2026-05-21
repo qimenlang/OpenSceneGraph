@@ -1,4 +1,4 @@
-// ocean-frag-ellipsoid-fft.glsl
+﻿// ocean-frag-ellipsoid-fft.glsl
 #define DETAIL
 #define DETAIL_OCTAVE 2.0
 #define DETAIL_BLEND 0.4
@@ -81,6 +81,9 @@ void user_diffuse_color( inout vec3 Cdiffuse, in vec3 CiNoLight, in vec3 Cwash, 
                          in float reflectivity, in vec3 nNorm );
 
 float finalWashWidth;
+
+uniform vec3 trit_userRotorCenter;
+const float VORTEX_VISUAL_RADIUS = 30.0;
 
 #ifdef PER_FRAGMENT_PROP_WASH
 vec3 applyPropWash(in vec3 v, in vec3 localPos, in vec3 finalAmbient)
@@ -170,6 +173,79 @@ vec3 applyPropWash(in vec3 v, in vec3 localPos, in vec3 finalAmbient)
     return numHits > 0.0 ? Cw / numHits : Cw;
 }
 #endif
+
+//--------------------------------
+// Rotor wash custom normal perturbation (ported from flat-fft)
+//--------------------------------
+
+#define ROTOR_RIPPLE_PI 3.14159265359
+
+float gerstnerIrregular(vec2 uv, vec2 dir, float amp, float len, float speed, float declRatio, float time)
+{
+    float r = length(uv); 
+    float twistRatio = 5.0;
+    vec2 warp = vec2(sin(uv.x*twistRatio),cos(uv.y*twistRatio  + 10.0));
+    float bTwist = step(0.01, r);
+
+    float k = 2.0 * ROTOR_RIPPLE_PI / len;
+    float w = k * speed;
+
+    vec2 delta = uv - vec2(0.0, 0.0);
+
+    float angle = atan(delta.y, delta.x);
+    float phaseTwist = 0.5 + 0.5 * sin(7.0 * angle);
+
+    float phase = k * dot(uv, dir) - w * time + phaseTwist * r * 20.0;
+
+    float decl = exp(-r*declRatio);
+    float highpoint = 0.3;
+    decl = clamp(1.0- 25.0*pow(r - highpoint,2.0), 0.0, 1.0);
+    amp *= decl; 
+    
+    return amp*sin(phase);
+}
+
+float vortexRing(vec2 uv, float time)
+{
+    float r = length(uv);
+
+    float ring = 0.0;
+
+    float amp = 0.5;
+    float len = 0.4;
+    float speed = 0.8;
+    vec2 uv0 = uv-vec2(0.0,0.0);
+    float declRatio = 10.0;
+
+    ring = gerstnerIrregular(uv0, normalize(uv0), amp, len, speed, declRatio, time);
+
+    return ring;
+}
+
+float oceanHeight(vec2 uv, float time)
+{
+    float height = 0.0;
+    height += vortexRing(uv, time);
+    return height;
+}
+
+vec3 getNormalMid(vec2 p, float time)
+{
+    float e = 0.002;
+
+    float hL = oceanHeight(p - vec2(e, 0.0), time);
+    float hR = oceanHeight(p + vec2(e, 0.0), time);
+    float hD = oceanHeight(p - vec2(0.0, e), time);
+    float hU = oceanHeight(p + vec2(0.0, e), time);
+
+    float scale = 1.0 / VORTEX_VISUAL_RADIUS;
+    return normalize(vec3((hL - hR) * scale / (2.0 * e), (hD - hU) * scale / (2.0 * e), 1.0));
+}
+
+vec3 getNormal(vec2 p, float time)
+{
+    return getNormalMid(p, time);
+}
 
 void main()
 {
@@ -308,6 +384,13 @@ void main()
     N += normalNoise;
 
     vec3 nNorm = normalize(N.x * localEast + N.y * localNorth + N.z * up);
+
+    vec3 worldPos = V + trit_cameraPos;
+    vec2 uv= (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
+    if (length(uv) < 1.0) {
+        vec3 localPert = getNormal(uv, trit_time);
+        nNorm = normalize(localPert.x * localEast + localPert.y * localNorth + localPert.z * up);
+    }
 
     vec3 reflection = reflect(vNorm, nNorm);
     vec3 refraction = refract(vNorm, nNorm, 1.0 / IOR);

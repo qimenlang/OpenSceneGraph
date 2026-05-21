@@ -1,10 +1,11 @@
-#ifndef TRITON_DRAWABLE_H
+﻿#ifndef TRITON_DRAWABLE_H
 #define TRITON_DRAWABLE_H
 
 #include<Triton.h>
 #include<osg/Drawable>
 #include<osg/TextureCubeMap>
 #include<osg/Texture2D>
+#include<osg/Node>
 
 struct TritonUpdateCallback : public virtual osg::Drawable::UpdateCallback {
     TritonUpdateCallback(Triton::Ocean *pOcean) : ocean(pOcean) {}
@@ -41,6 +42,9 @@ public:
 
     void UpdateShipPos( double x, double y, double z, double dx, double dy, double dz, double velocity );
 
+    /** Node whose world-space center drives RotorWash (e.g. a cube MatrixTransform). */
+    void setRotorWashSourceNode(osg::Node* node) { _rotorWashSource = node; }
+
 protected:
 
     void Setup( void );
@@ -61,6 +65,21 @@ protected:
     osg::Vec3d              _shipPosition;
     osg::Vec3d              _shipDirection;
     float                   _shipVelocity;
+
+    Triton::RotorWash      *_rotorWash;
+    osg::observer_ptr<osg::Node> _rotorWashSource;
+
+    void applyUserRotorDisplaceUniforms(osg::State& state) const;
+
+    float _userRotorRadius;
+    float _userRotorAmplitude;
+    float _userRotorWaveCount;
+
+    mutable int _userRotorCenterLoc[2];
+    mutable int _userRotorRadiusLoc[2];
+    mutable int _userRotorAmplitudeLoc[2];
+    mutable int _userRotorWaveCountLoc[2];
+    mutable int _userRotorEnabledLoc[2];
 
 };
 

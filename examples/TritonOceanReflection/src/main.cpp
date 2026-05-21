@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
@@ -17,6 +17,9 @@
 #include <osg/MatrixTransform>
 #include <osg/FrontFace>
 #include <osg/Material>
+#include <osg/Geode>
+#include <osg/ShapeDrawable>
+#include <osg/Shape>
 
 #include <iostream>
 
@@ -406,11 +409,28 @@ int main(int argc, char** argv)
 
     viewer.setSceneData( scene );
 
+    // Cube carrying rotor wash; downwash is emitted from its center
+    osg::ref_ptr<osg::MatrixTransform> rotorCube = new osg::MatrixTransform;
+    rotorCube->setMatrix(osg::Matrix::translate(0.0, 0.0, 8.0));
+
+    osg::ref_ptr<osg::Geode> cubeGeode = new osg::Geode;
+    osg::ref_ptr<osg::ShapeDrawable> cubeShape = new osg::ShapeDrawable(new osg::Box(osg::Vec3(), 1.0));
+    cubeShape->setColor(osg::Vec4(0.8f, 0.2f, 0.2f, 1.0f));
+    cubeGeode->addDrawable(cubeShape.get());
+
+    osg::ref_ptr<osg::Material> cubeMaterial = new osg::Material;
+    cubeMaterial->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4(0.8f, 0.2f, 0.2f, 1.0f));
+    cubeGeode->getOrCreateStateSet()->setAttributeAndModes(cubeMaterial.get());
+
+    rotorCube->addChild(cubeGeode.get());
+    scene->addChild(rotorCube.get());
+
     osg::ref_ptr<TritonDrawable> tritonDrawable =
         new TritonDrawable( geocentric,
                             environmentMap, worldToLocal,
                             planarReflectionCamera->getTexture(),
                             planarReflectionCamera->getTextureProjectionMatrix() );
+    tritonDrawable->setRotorWashSourceNode(rotorCube.get());
 
     ocean->addDrawable( tritonDrawable );
 
