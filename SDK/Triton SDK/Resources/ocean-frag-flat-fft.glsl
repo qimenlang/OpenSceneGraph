@@ -61,6 +61,9 @@ varying vec3 propWashCoord;
 #endif
 #endif
 
+uniform vec3 trit_userRotorCenter;
+const float VORTEX_VISUAL_RADIUS = 30.0;
+
 // From user-functions.glsl:
 void user_lighting(in vec3 L
                    , in vec3 vVertex_World_Space, in vec3 vNormal_World_Space
@@ -167,6 +170,102 @@ vec3 applyPropWash(in vec3 v, in vec3 finalAmbient)
     return numHits > 0.0 ? Cw / numHits : Cw;
 }
 #endif
+
+//--------------------------------
+// gerstner wave (fragment-local; trit_time passed from main)
+//--------------------------------
+
+#define ROTOR_RIPPLE_PI 3.14159265359
+
+float gerstnerIrregular(vec2 uv, vec2 dir, float amp, float len, float speed, float declRatio, float time)
+{
+    float r = length(uv); 
+    // 扭曲uv坐标，改变波形形状
+    float twistRatio = 5.0;
+    vec2 warp = vec2(sin(uv.x*twistRatio),cos(uv.y*twistRatio  + 10.0));
+    float bTwist = step(0.01, r);
+    // uv += warp * 0.2*bTwist;
+
+    float k = 2.0 * ROTOR_RIPPLE_PI / len;
+    float w = k * speed;
+
+    vec2 delta = uv - vec2(0.0, 0.0);
+
+    float angle = atan(delta.y, delta.x);
+    // 扰动相位，增加八重对称的旋转效果
+    // 八重对称方向因子：在八个方向上为1，其余方向小于1
+    // cos(8*angle) 在 angle = 0°,45°,90°,135°,180°,225°,270°,315° 时等于1
+    float phaseTwist = 0.5 + 0.5 * sin(7.0 * angle);
+
+    float phase = k * dot(uv, dir) - w * time + phaseTwist * r * 20.0;
+
+    // 两种衰减叠加
+    float decl = exp(-r*declRatio);
+    // 随距离衰减,0.25处最强；0.0-0.5范围内衰减
+    float highpoint = 0.3;
+    // decl = clamp(1.0-  pow(r - highpoint,2.0)/pow(highpoint,2.0), 0.0, 1.0);
+    decl = clamp(1.0- 25.0*pow(r - highpoint,2.0), 0.0, 1.0);
+    // 随距离衰减
+    // decl *= exp(-r*declRatio);
+    amp *= decl; 
+    
+    return amp*sin(phase);
+}
+
+float vortexRing(vec2 uv, float time)
+{
+    float r = length(uv);
+
+    float ring = 0.0;
+    // 1. 简单的同心圆波纹
+
+    // ring = sinWave(uv);
+
+    // 2. 叠加多个偏移的波纹，模拟旋翼下的复杂涡流
+    // 振幅、波长、速度
+    float amp = 0.5; // 波纹振幅 米
+    float len = 0.4;
+    float speed = 0.8;
+    vec2 uv0 = uv-vec2(0.0,0.0);
+    float declRatio = 10.0; // 衰减速率
+
+    // 扭曲uv坐标，改变波形形状
+    // vec2 warp = vec2(noise(uv*3.0 + iTime),noise(uv*3.0 + iTime + 10.0));
+    // uv0 += warp * 0.03;
+    // ring =  gerstner(uv0, normalize(uv0), amp, len, speed*0.8);
+    ring = gerstnerIrregular(uv0, normalize(uv0), amp, len, speed, declRatio, time);
+
+    return ring;
+}
+
+
+float oceanHeight(vec2 uv, float time)
+{
+    float height = 0.0;
+    height += vortexRing(uv, time);
+    // height += RotorRipple(uv);
+    // height*=0.3;// 整体缩放系数，控制波浪高度
+    return height;
+}
+
+// 中心差分（uv 按 VORTEX_VISUAL_RADIUS 归一化，需换算到世界尺度）
+vec3 getNormalMid(vec2 p, float time)
+{
+    float e = 0.002;
+
+    float hL = oceanHeight(p - vec2(e, 0.0), time);
+    float hR = oceanHeight(p + vec2(e, 0.0), time);
+    float hD = oceanHeight(p - vec2(0.0, e), time);
+    float hU = oceanHeight(p + vec2(0.0, e), time);
+
+    float scale = 1.0 / VORTEX_VISUAL_RADIUS;
+    return normalize(vec3((hL - hR) * scale / (2.0 * e), (hD - hU) * scale / (2.0 * e), 1.0));
+}
+
+vec3 getNormal(vec2 p, float time)
+{
+    return getNormalMid(p, time);
+}
 
 void main()
 {
@@ -309,6 +408,23 @@ void main()
     vec3 fadedNormal = mix(vec3(0.0,0.0,1.0), realNormal, tileFadeHoriz);
 
     vec3 nNorm = trit_invBasis * normalize(fadedNormal + (normalNoise * (1.0 - tileFade)));
+
+    //nNorm = vec3(0.0, 0.0, 1.0);
+
+    vec3 worldPos = V + trit_cameraPos;
+
+    vec2 uv= (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
+    if (length(uv) < 1.0) {
+        nNorm = trit_invBasis * getNormal(uv,trit_time);
+    }
+    //vec2 uv = (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
+    //float distUv = length(uv);
+    //float rippleMask = 1.0 - smoothstep(0.95, 1.05, distUv);
+    //if (rippleMask > 0.0) {
+    //    vec3 rippleNormal = getNormal(uv, trit_time);
+    //    vec3 perturbedLocal = normalize(mix(vec3(0.0, 0.0, 1.0), rippleNormal, rippleMask));
+    //    nNorm = trit_invBasis * perturbedLocal;
+    //}
 
     vec3 P = reflect(vNorm, nNorm);
 

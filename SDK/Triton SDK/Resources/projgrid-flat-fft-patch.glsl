@@ -536,45 +536,6 @@ void displace(inout vec3 v)
     v = trit_invBasis * localV;
 }
 
-//--------------------------------
-// gerstner wave (match projgrid-flat-fft.glsl)
-//--------------------------------
-
-float gerstnerIrregular(vec2 uv, vec2 dir, float amp, float len, float speed, float declRatio)
-{
-    float r = length(uv);
-    float twistRatio = 5.0;
-    vec2 warp = vec2(sin(uv.x * twistRatio), cos(uv.y * twistRatio + 10.0));
-    float bTwist = step(0.01, r);
-
-    float k = 2.0 * PI / len;
-    float w = k * speed;
-
-    vec2 delta = uv - vec2(0.0, 0.0);
-    float angle = atan(delta.y, delta.x);
-    float phaseTwist = 0.5 + 0.5 * sin(7.0 * angle);
-
-    float phase = k * dot(uv, dir) - w * trit_time + phaseTwist * r * 20.0;
-
-    float decl = exp(-r * declRatio);
-    float highpoint = 0.3;
-    decl = clamp(1.0 - 25.0 * pow(r - highpoint, 2.0), 0.0, 1.0);
-    amp *= decl;
-
-    return amp * sin(phase);
-}
-
-float vortexRing(vec2 uv)
-{
-    float amp = 0.5;
-    float len = 0.4;
-    float speed = 0.8;
-    vec2 uv0 = uv - vec2(0.0, 0.0);
-    float declRatio = 10.0;
-
-    return gerstnerIrregular(uv0, normalize(uv0), amp, len, speed, declRatio);
-}
-
 void main()
 {
     wakeSlopeAndFoam = vec3( 0. );
@@ -596,10 +557,6 @@ void main()
     displace(worldPos.xyz);
 
     vec3 localPos = worldPos.xyz - trit_cameraPos;
-    vec2 uv = (worldPos.xy - trit_userRotorCenter.xy) / 100.0;
-    if (length(uv) < 1.0) {
-        localPos.z += vortexRing(uv);
-    }
     worldPos.xyz = localPos + trit_cameraPos;
 
     V = localPos;
