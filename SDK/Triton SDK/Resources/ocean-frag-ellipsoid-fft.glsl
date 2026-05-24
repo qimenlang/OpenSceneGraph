@@ -82,7 +82,7 @@ void user_diffuse_color( inout vec3 Cdiffuse, in vec3 CiNoLight, in vec3 Cwash, 
 
 float finalWashWidth;
 
-uniform vec3 trit_userRotorCenter;
+uniform vec3 trit_userRotorCenter; // WGS84: camera-relative offset (meters). Flat: absolute world position.
 const float VORTEX_VISUAL_RADIUS = 30.0;
 
 #ifdef PER_FRAGMENT_PROP_WASH
@@ -386,14 +386,21 @@ void main()
 
     vec3 nNorm = normalize(N.x * localEast + N.y * localNorth + N.z * up);
 
-    vec3 worldPos = V + trit_cameraPos;
-    vec3 rotorDelta = worldPos - trit_userRotorCenter;
-    
-    //vec2 uv = vec2(dot(rotorDelta, localEast), dot(rotorDelta, localNorth)) / VORTEX_VISUAL_RADIUS;
-    vec2 uv= rotorDelta.xy / VORTEX_VISUAL_RADIUS;
-    if (length(uv) < 1.0) {
-        vec3 localPert = getNormal(uv, trit_time);
-        nNorm = normalize(localPert.x * localEast + localPert.y * localNorth + localPert.z * up);
+    // V is camera-relative (meters). trit_userRotorCenter is rotor offset from camera (CPU double precision).
+    // Use tile-local basis like flat-fft so UV and normal share the same frame within each patch.
+    vec3 vLocal = trit_basis * V;
+    vec3 rotorLocal = trit_basis * trit_userRotorCenter;
+    vec2 uv = (vLocal.xy - rotorLocal.xy) / VORTEX_VISUAL_RADIUS;
+    float distUv = length(uv);
+    float rippleMask = 1.0 - smoothstep(0.90, 1.0, distUv);
+    if (rippleMask > 0.0) {
+        // Additive slope perturbation on ocean normal (same pattern as wake/noise above).
+        vec3 localDelta = getNormal(uv, trit_time) - vec3(0.0, 0.0, 1.0);
+        vec3 worldDelta = transpose(trit_basis) * localDelta;
+        nNorm = normalize(nNorm + rippleMask * worldDelta);
+#ifdef SPARKLE
+        specNormal = normalize(specNormal + rippleMask * worldDelta);
+#endif
     }
 
     vec3 reflection = reflect(vNorm, nNorm);

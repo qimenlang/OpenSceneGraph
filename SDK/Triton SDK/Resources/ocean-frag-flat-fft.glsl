@@ -409,22 +409,19 @@ void main()
 
     vec3 nNorm = trit_invBasis * normalize(fadedNormal + (normalNoise * (1.0 - tileFade)));
 
-    //nNorm = vec3(0.0, 0.0, 1.0);
-
     vec3 worldPos = V + trit_cameraPos;
-
-    vec2 uv= (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
-    if (length(uv) < 1.0) {
-        nNorm = trit_invBasis * getNormal(uv,trit_time);
+    vec2 uv = (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
+    float distUv = length(uv);
+    float rippleMask = 1.0 - smoothstep(0.90, 1.0, distUv);
+    if (rippleMask > 0.0) {
+        // Additive slope perturbation on ocean normal (same pattern as wake/noise above).
+        vec3 localDelta = getNormal(uv, trit_time) - vec3(0.0, 0.0, 1.0);
+        vec3 worldDelta = trit_invBasis * localDelta;
+        nNorm = normalize(nNorm + rippleMask * worldDelta);
+#ifdef SPARKLE
+        specNormal = normalize(specNormal + rippleMask * worldDelta);
+#endif
     }
-    //vec2 uv = (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
-    //float distUv = length(uv);
-    //float rippleMask = 1.0 - smoothstep(0.95, 1.05, distUv);
-    //if (rippleMask > 0.0) {
-    //    vec3 rippleNormal = getNormal(uv, trit_time);
-    //    vec3 perturbedLocal = normalize(mix(vec3(0.0, 0.0, 1.0), rippleNormal, rippleMask));
-    //    nNorm = trit_invBasis * perturbedLocal;
-    //}
 
     vec3 P = reflect(vNorm, nNorm);
 

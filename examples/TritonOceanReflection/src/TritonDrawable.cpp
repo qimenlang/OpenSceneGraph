@@ -175,7 +175,14 @@ void TritonDrawable::applyUserRotorCenterUniform(osg::State& state) const
         return;
     }
 
-    const Triton::Vector3 center = _rotorWash->GetPosition();
+    Triton::Vector3 center = _rotorWash->GetPosition();
+    if (_environment && _environment->IsGeocentric()) {
+        const double* camPos = _environment->GetCameraPosition();
+        center = Triton::Vector3(
+            center.x - camPos[0],
+            center.y - camPos[1],
+            center.z - camPos[2]);
+    }
     const Triton::Shaders programs[2] = { Triton::WATER_SURFACE, Triton::WATER_SURFACE_PATCH };
 
     for (int i = 0; i < 2; ++i) {
