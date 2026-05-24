@@ -69,17 +69,9 @@ protected:
     Triton::RotorWash      *_rotorWash;
     osg::observer_ptr<osg::Node> _rotorWashSource;
 
-    void applyUserRotorDisplaceUniforms(osg::State& state) const;
-
-    float _userRotorRadius;
-    float _userRotorAmplitude;
-    float _userRotorWaveCount;
+    void applyUserRotorCenterUniform(osg::State& state) const;
 
     mutable int _userRotorCenterLoc[2];
-    mutable int _userRotorRadiusLoc[2];
-    mutable int _userRotorAmplitudeLoc[2];
-    mutable int _userRotorWaveCountLoc[2];
-    mutable int _userRotorEnabledLoc[2];
 
 };
 
