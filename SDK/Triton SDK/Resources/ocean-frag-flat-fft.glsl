@@ -202,9 +202,9 @@ float gerstnerIrregular(vec2 uv, vec2 dir, float amp, float len, float speed, fl
     // 两种衰减叠加
     float decl = exp(-r*declRatio);
     // 随距离衰减,0.25处最强；0.0-0.5范围内衰减
-    float highpoint = 0.3;
+    float highpoint = 0.5;
     // decl = clamp(1.0-  pow(r - highpoint,2.0)/pow(highpoint,2.0), 0.0, 1.0);
-    decl = clamp(1.0- 25.0*pow(r - highpoint,2.0), 0.0, 1.0);
+    decl = clamp(1.0- 4.0*pow(r - highpoint,2.0), 0.0, 1.0);
     // 随距离衰减
     // decl *= exp(-r*declRatio);
     amp *= decl; 
@@ -223,9 +223,9 @@ float vortexRing(vec2 uv, float time)
 
     // 2. 叠加多个偏移的波纹，模拟旋翼下的复杂涡流
     // 振幅、波长、速度
-    float amp = 0.5; // 波纹振幅 米
-    float len = 0.4;
-    float speed = 0.8;
+    float amp = 0.05; // 波纹振幅 米
+    float len = 0.04;
+    float speed = 0.08;
     vec2 uv0 = uv-vec2(0.0,0.0);
     float declRatio = 10.0; // 衰减速率
 

@@ -30,6 +30,16 @@
 #define WATER_MASK ( 0x80000000 )
 #define FALLBACK_MODEL "boat.3ds"
 
+// Default camera and rotor wash layout in the local tangent frame (meters).
+static const float g_seaLevelAltitude = 10.0f;
+static const float g_rotorDistanceInFront = 10.0f;
+static const float g_cameraLookDistance = 100.0f;
+static const osg::Vec3 g_localViewForward(0.0f, 1.0f, 0.0f);
+static const osg::Vec3 g_localUp(0.0f, 0.0f, 1.0f);
+static const osg::Vec3 g_cameraEyeLocal(0.0f, 0.0f, g_seaLevelAltitude);
+static const osg::Vec3 g_cameraCenterLocal = g_cameraEyeLocal + g_localViewForward * g_cameraLookDistance;
+static const osg::Vec3 g_rotorCubeLocal = g_cameraEyeLocal + g_localViewForward * g_rotorDistanceInFront;
+
 
 osg::Camera * CreateTextureQuadOverlay( osg::Texture * texture, float x, float y, float w, float h )
 {
@@ -143,23 +153,6 @@ osg::Node * CreateMirroredWorldGraph( osg::Node * loadedModel, const osg::Matrix
     return world.release();
 }
 
-// Set initial camera position little higher than sea level to avoid annoying ocean surface clipping at startup
-void AdjustCameraHomePosition( osgViewer::Viewer & viewer, osg::Node * world, const osg::Matrix & localToWorld )
-{
-    osg::Vec3 center( 0,0,0 );
-    osg::Vec3 viewVector( -500,-500,-200 );
-
-    if( world ) {
-        center = world->getBound().center();
-//        if( center[2] < 0 ) center[2] = 0;
-
-        float length = viewVector.normalize();
-        viewVector *= osg::maximum( world->getBound().radius() * 2, length );
-    }
-
-    viewer.getCameraManipulator()->setHomePosition( center - viewVector, center, osg::Z_AXIS * localToWorld );
-}
-
 
 class MoveModelCallback: public osg::NodeCallback
 {
@@ -245,7 +238,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    bool geocentric = false;
+    bool geocentric = true;
     while( arguments.read( "--geocentric" ) )
         geocentric = true;
 
@@ -367,8 +360,11 @@ int main(int argc, char** argv)
     // Environment map created by Skybox and passed to Triton to make reflections on waves
     osg::TextureCubeMap * environmentMap = NULL;
 
-    // Set initial camera position little higher than sea level to avoid annoying ocean surface clipping at startup
-    AdjustCameraHomePosition( viewer, world, *localToWorld );
+    // Default camera: 10 m above sea level, looking along +Y in the local tangent frame.
+    viewer.getCameraManipulator()->setHomePosition(
+        g_cameraEyeLocal * (*localToWorld),
+        g_cameraCenterLocal * (*localToWorld),
+        osg::Matrix::transform3x3(g_localUp, *localToWorld));
 
     // Create Sky
     world->asGroup()->addChild( createSkyBox( environmentMap ) );
@@ -409,9 +405,9 @@ int main(int argc, char** argv)
 
     viewer.setSceneData( scene );
 
-    // Cube carrying rotor wash; downwash is emitted from its center
+    // Cube carrying rotor wash; 10 m in front of default camera, 10 m above sea level.
     osg::ref_ptr<osg::MatrixTransform> rotorCube = new osg::MatrixTransform;
-    rotorCube->setMatrix(osg::Matrix::translate(0.0, 0.0, 8.0));
+    rotorCube->setMatrix(osg::Matrix::translate(g_rotorCubeLocal));
 
     osg::ref_ptr<osg::Geode> cubeGeode = new osg::Geode;
     osg::ref_ptr<osg::ShapeDrawable> cubeShape = new osg::ShapeDrawable(new osg::Box(osg::Vec3(), 1.0));
@@ -423,7 +419,7 @@ int main(int argc, char** argv)
     cubeGeode->getOrCreateStateSet()->setAttributeAndModes(cubeMaterial.get());
 
     rotorCube->addChild(cubeGeode.get());
-    scene->addChild(rotorCube.get());
+    world->asGroup()->addChild(rotorCube.get());
 
     osg::ref_ptr<TritonDrawable> tritonDrawable =
         new TritonDrawable( geocentric,

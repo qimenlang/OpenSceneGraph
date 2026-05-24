@@ -199,7 +199,8 @@ float gerstnerIrregular(vec2 uv, vec2 dir, float amp, float len, float speed, fl
 
     float decl = exp(-r*declRatio);
     float highpoint = 0.3;
-    decl = clamp(1.0- 25.0*pow(r - highpoint,2.0), 0.0, 1.0);
+    decl = clamp(1.0- 4.0*pow(r - highpoint,2.0), 0.0, 1.0);
+    //decl = clamp(1.0- 25.0*pow(r - highpoint,2.0), 0.0, 1.0);
     amp *= decl; 
     
     return amp*sin(phase);
@@ -211,9 +212,9 @@ float vortexRing(vec2 uv, float time)
 
     float ring = 0.0;
 
-    float amp = 0.5;
-    float len = 0.4;
-    float speed = 0.8;
+    float amp = 0.05;
+    float len = 0.04;
+    float speed = 0.08;
     vec2 uv0 = uv-vec2(0.0,0.0);
     float declRatio = 10.0;
 
@@ -386,7 +387,10 @@ void main()
     vec3 nNorm = normalize(N.x * localEast + N.y * localNorth + N.z * up);
 
     vec3 worldPos = V + trit_cameraPos;
-    vec2 uv= (worldPos.xy - trit_userRotorCenter.xy) / VORTEX_VISUAL_RADIUS;
+    vec3 rotorDelta = worldPos - trit_userRotorCenter;
+    
+    //vec2 uv = vec2(dot(rotorDelta, localEast), dot(rotorDelta, localNorth)) / VORTEX_VISUAL_RADIUS;
+    vec2 uv= rotorDelta.xy / VORTEX_VISUAL_RADIUS;
     if (length(uv) < 1.0) {
         vec3 localPert = getNormal(uv, trit_time);
         nNorm = normalize(localPert.x * localEast + localPert.y * localNorth + localPert.z * up);
